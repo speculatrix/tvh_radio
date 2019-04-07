@@ -9,7 +9,7 @@ import argparse
 import configparser
 #import datetime
 #import hashlib
-#import json
+import json
 import os
 #import stat
 import signal
@@ -82,7 +82,6 @@ SETTINGS_DEFAULTS = {
     },
 }
 
-DBG_LEVEL = 0
 
 # Radio Modes
 RM_TVH = 'TVH'
@@ -111,17 +110,16 @@ def get_tvh_chan_urls():
     '''gets the channel listing and generats an ordered dict by name'''
 
     global DBG_LEVEL
-    global MY_SETTINGS
 
-    ts_url = MY_SETTINGS.get(SETTINGS_SECTION, TS_URL)
-    ts_user = MY_SETTINGS.get(SETTINGS_SECTION, TS_USER)
-    ts_pass = MY_SETTINGS.get(SETTINGS_SECTION, TS_PASS)
+    ts_url = MY_SETTINGS[SETTINGS_SECTION][TS_URL]
+    ts_user = MY_SETTINGS[SETTINGS_SECTION][TS_USER]
+    ts_pass = MY_SETTINGS[SETTINGS_SECTION][TS_PASS]
     ts_query = '%s/%s?limit=400' % (
         ts_url,
         TS_URL_CHN,
     )
     ts_response = requests.get(ts_query, auth=(ts_user, ts_pass))
-    #print('<!-- get_channel_dict URL %s -->' % (ts_query, ))
+    #print('<!-- get_tvh_chan_urls URL %s -->' % (ts_query, ))
     if ts_response.status_code != 200:
         print('>Error code %d\n%s' % (ts_response.status_code, ts_response.content, ))
         return {}
@@ -131,14 +129,14 @@ def get_tvh_chan_urls():
     #                                   indent=4, separators=(',', ': ')) )
 
     if TS_PAUTH in MY_SETTINGS[SETTINGS_SECTION]:
-        ts_pauth = '&AUTH=%s' % (MY_SETTINGS.get(SETTINGS_SECTION, TS_PAUTH), )
+        ts_pauth = '&AUTH=%s' % (MY_SETTINGS[SETTINGS_SECTION][TS_PAUTH], )
     else:
         ts_pauth = ''
 
 
-    channel_map = {}  # full channel info
-    channel_list = []  # build a list of channel names
-    ordered_channel_map = collections.OrderedDict()
+    chan_map = {}  # full channel info
+    chan_list = []  # build a list of channel names
+    ordered_chan_map = collections.OrderedDict()
     if 'entries' in ts_json:
         # grab all channel info
         name_unknown = 0
@@ -146,17 +144,17 @@ def get_tvh_chan_urls():
         for entry in ts_json['entries']:
             # start building a dict with channel name as key
             if 'name' in entry:
-                channel_name = entry['name']
+                chan_name = entry['name']
             else:
-                channel_name = 'unknown ' + str(name_unknown)
+                chan_name = 'unknown ' + str(name_unknown)
                 name_unknown += 1
 
-            channel_list.append(channel_name)
-            if channel_name not in channel_map:
-                channel_map[channel_name] = {}
+            chan_list.append(chan_name)
+            if chan_name not in chan_map:
+                chan_map[chan_name] = {}
 
             # store the channel specific info
-            ch_map = channel_map[channel_name]
+            ch_map = chan_map[chan_name]
 
             if 'tags' in entry:
                 ch_map['tags'] = entry['tags']
@@ -167,8 +165,10 @@ def get_tvh_chan_urls():
                 ch_map['number'] = number_unknown
                 name_unknown -= 1
 
+            ch_map['uuid'] = entry['uuid']
+
             ch_map['url'] = '%s/%s/%s?profile=audio-only%s' % (
-                            MY_SETTINGS.get(SETTINGS_SECTION, TS_URL),
+                            MY_SETTINGS[SETTINGS_SECTION][TS_URL],
                             TS_URL_STR,
                             entry['uuid'],
                             ts_pauth, )
@@ -176,15 +176,19 @@ def get_tvh_chan_urls():
             if 'icon_public_url' in entry:
                 ch_map['icon_public_url'] = entry['icon_public_url']
 
-        channel_list_sorted = sorted(channel_list, key=lambda s: s.casefold())
+        chan_list_sorted = sorted(chan_list, key=lambda s: s.casefold())
 
         # case insensitive sort of channel list
-        for chan in channel_list_sorted:
+        for chan in chan_list_sorted:
             # ... produces an ordered dict
             #print('adding %s<br />' % (chan, ))
-            ordered_channel_map[chan] = channel_map[chan]
+            ordered_chan_map[chan] = chan_map[chan]
 
-    return ordered_channel_map
+    if DBG_LEVEL >= 0:
+        print('%s' % json.dumps(ordered_chan_map, sort_keys=True, \
+                                indent=4, separators=(',', ': ')) )
+
+    return ordered_chan_map
 
 
 ##########################################################################################
@@ -204,7 +208,7 @@ def check_load_config_file(settings_dir, settings_file):
     if not os.path.isdir(settings_dir):
         os.mkdir(settings_dir)
         if not os.path.isdir(settings_dir):
-            error_text = 'Error, "%s" is not a directory' % (settings_dir, )
+            error_text = 'Error, "%s" is not a directory, couldn\'t make it one' % (settings_dir, )
             return (-2, error_text)
 
 
@@ -223,6 +227,8 @@ def check_load_config_file(settings_dir, settings_file):
         error_text = 'Error, failed parse config file "%s"' % (settings_file, )
         return(-1, error_text)
 
+    print('Debug, check_load_config_file: %s' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], ) )
+
     return (0, 'OK')
 
 
@@ -234,11 +240,6 @@ def settings_editor(settings_dir, settings_file):
 
     global DBG_LEVEL
     global MY_SETTINGS
-
-    (config_bad, error_text) = check_load_config_file(settings_dir, settings_file)
-    if config_bad < 0:
-        print('%s' % (error_text, ) )
-
 
     if SETTINGS_SECTION not in MY_SETTINGS.sections():
         print('section %s doesn\'t exit' % SETTINGS_SECTION)
@@ -264,6 +265,8 @@ def settings_editor(settings_dir, settings_file):
         new_value = sys.stdin.readline().rstrip()
         if new_value != '' and new_value != '\n':
             MY_SETTINGS.set(SETTINGS_SECTION, setting, new_value)
+        else:
+            MY_SETTINGS.set(SETTINGS_SECTION, setting, setting_value)
 
     config_file_handle = open(settings_file, 'w')
     if config_file_handle:
@@ -272,6 +275,27 @@ def settings_editor(settings_dir, settings_file):
         print('Error, failed to open and write config file "%s"' %
               (settings_file, ))
         exit(1)
+
+##########################################################################################
+# play_channel
+def play_channel(chan_data):
+    '''starts player on channel number'''
+
+    global DBG_LEVEL
+    global MY_SETTINGS
+
+    #print('Debug, play_channel')
+    #print('%s' % json.dumps(chan_data, sort_keys=True, indent=4, separators=(',', ': ')) )
+
+    url = chan_data['url']
+
+    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, TS_PLAY)
+    play_cmd_array = play_cmd.split()
+    play_cmd_array.append(url)
+    print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
+
+    subprocess.call(play_cmd_array)
+
 
 
 ##########################################################################################
@@ -326,12 +350,15 @@ def radio_app():
     threads.append(Thread(target=keyboard_listen_thread, args=(EVENT, )))
     threads[-1].start()
 
+    chan_dict = {}
+    if RADIO_MODE == RM_TVH:
+        chan_map = get_tvh_chan_urls()
+    else:
+        print('Sorry, only TVH supported')
 
-    #if RADIO_MODE == RM_TVH:
-    #    get_tvh_chan_urls()
-
-    channel_num = 0
-    max_chan = 10
+    chan_num = 0
+    chan_names = list(chan_map.keys())
+    max_chan = len(chan_map)
 
     # SIGINT and keyboard strokes and (one day) GPIO events all get funnelled here
     print('radio app waiting on event')
@@ -347,30 +374,33 @@ def radio_app():
                 print_help()
 
             #elif KEY_STROKE == 'l':
-                #DBG_LEVEL or print('list')
+                #DBG_LEVEL and print('list')
                 #print('list')
                 #print(', '.join(chan_names))
 
             elif KEY_STROKE == 'p':
                 DBG_LEVEL or print('play')
-                print('unable to play channel %d' % (channel_num, ))
-                #play_channel(chan_data)
+                print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
+                play_channel(chan_map[chan_names[chan_num]])
 
             elif KEY_STROKE == 'd':
-                DBG_LEVEL or print('down')
-                if channel_num > 0:
-                    channel_num = channel_num - 1
+                DBG_LEVEL and print('down')
+                if chan_num > 0:
+                    chan_num = chan_num - 1
+                print('Channel %s' % (chan_names[chan_num], ))
 
             elif KEY_STROKE == 'u':
-                DBG_LEVEL or print('up')
-                if channel_num < max_chan - 1:
-                    channel_num = channel_num + 1
+                DBG_LEVEL and print('up')
+                if chan_num < max_chan - 1:
+                    chan_num = chan_num + 1
+                print('Channel %s' % (chan_names[chan_num], ))
 
             elif KEY_STROKE == 'm':
                 if RADIO_MODE == RM_TVH:
                     RADIO_MODE = RM_STR
                 else:
                     RADIO_MODE = RM_TVH
+                    get_tvh_chan_urls()
                 print('Mode now %s' % (RADIO_MODE, ))
 
             else:
@@ -397,35 +427,38 @@ def main():
     global EVENT
     global KEY_STROKE
 
+    # settings_file is the fully qualified path to the settings file
     settings_dir = os.path.join(os.environ['HOME'], SETTINGS_DIR)
     settings_file = os.path.join(settings_dir, SETTINGS_FILE)
+    (config_bad, error_text) = check_load_config_file(settings_dir, settings_file)
 
     parser = argparse.ArgumentParser()
     parser.add_argument('-d', '--debug', required=False,
                         action="store_true", help='increase the debug level')
     parser.add_argument('-s', '--setup', required=False,
                         action="store_true", help='run the setup process')
-
     args = parser.parse_args()
 
     if args.debug:
         DBG_LEVEL += 1
         print('Debug, increased debug level')
 
-    if args.setup:
-        settings_editor(settings_dir, settings_file)
-    else:
-        (config_bad, error_text) = check_load_config_file(settings_dir, settings_file)
+    if args.setup or config_bad < 0:
+        if config_bad < -1:
+            print('Error, severe problem with settings, please fix and restart program')
+            print('%s' % (error_text,) )
+            exit(1)
         if config_bad < 0:
             print('%s' % (error_text,) )
-            print('please fix the situation and re-run program with -s flag')
-            exit(1)
+        settings_editor(settings_dir, settings_file)
+    else:
         radio_app()
 
 
 ##########################################################################################
 
 if __name__ == "__main__":
+    DBG_LEVEL = 0
     KEY_STROKE = ''
     QUIT_FLAG = False
     EVENT = Event()
