@@ -2,9 +2,13 @@
 
 Yet Another Pi Radio application
 
+This one is a little different. For a start, it can speak to tell you the channel you're about to play.
+Secondly, it understands the TV Headend API, thus allowing you to suse a TVH server as a radio source.
+
+
 # Purpose
 
-This project is for allowing a Raspberry Pi to be used as a radio-like appliance, streaming from a TV Headend server or from a list of URLs
+This project is for allowing a Raspberry Pi to be used as a radio-like appliance, streaming from a TV Headend server or from a list of URLs (TBD).
 
 The software here is a command line interface, so that the Pi can be used headless with just a keyboard. This project will be expanded to include instructions on fitting into a re-purposed radio shell, and setting the Pi to boot straight into this application.
 

@@ -7,6 +7,7 @@ This is a multi-mode radio app for a Pi, for streaming from the internet or from
 
 import argparse
 import configparser
+import copy
 #import datetime
 #import hashlib
 import json
@@ -22,6 +23,7 @@ import tty
 import collections
 import termios
 import requests
+import urllib
 
 # requires making code less readable:
 # Xpylint:disable=bad-whitespace
@@ -37,6 +39,9 @@ import requests
 ##########################################################################################
 
 URL_GITHUB_HASH_SELF = 'https://api.github.com/repos/speculatrix/ya_pi_radio/ya_pi_radio.py'
+
+GOOGLE_TTS = 'http://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q='
+G_TTS_UA = 'VLC/3.0.2 LibVLC/3.0.2'
 
 # string constants
 TS_URL_CHN = 'api/channel/grid'
@@ -101,8 +106,47 @@ h - help
 m - mode change
 p - play channel
 q - quit
+s - speak channel name
 u - up a channel
 ''')
+
+
+##########################################################################################
+def chan_data_to_tts_file(chan_data):
+    '''given the channel data, returns the name of a sound file which is the
+       channel name; if file doesn't exist uses Google to generate it'''
+
+    global DBG_LEVEL
+    global MY_SETTINGS
+
+    tts_file_name = '%s.mp3' % (os.path.join(os.environ['HOME'], SETTINGS_DIR, chan_data['uuid']), )
+
+    if not os.path.isfile(tts_file_name):
+        goo_url = '%s%s' % (GOOGLE_TTS, urllib.parse.quote(chan_data['name']), )
+        print('goo_url %s, tts_file_name %s' % (goo_url, tts_file_name, ))
+
+        tts_out = open(tts_file_name, 'wb')
+
+        opener = urllib.request.build_opener()
+        opener.addheaders =[('User-agent', G_TTS_UA), ]
+        with opener.open(goo_url) as goo_handle:
+            tts_out.write(goo_handle.read())
+
+    return(tts_file_name)
+
+
+##########################################################################################
+def play_file(audio_file_name):
+
+    global DBG_LEVEL
+    global MY_SETTINGS
+
+    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, TS_PLAY)
+    play_cmd_array = play_cmd.split()
+    play_cmd_array.append(audio_file_name)
+    #print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
+
+    subprocess.call(play_cmd_array)
 
 
 ##########################################################################################
@@ -125,8 +169,9 @@ def get_tvh_chan_urls():
         return {}
 
     ts_json = ts_response.json()
-    #print('%s' % json.dumps(ts_json, sort_keys=True, \
-    #                                   indent=4, separators=(',', ': ')) )
+    if DBG_LEVEL > 0:
+        print('%s' % json.dumps(ts_json, sort_keys=True, \
+                                indent=4, separators=(',', ': ')) )
 
     if TS_PAUTH in MY_SETTINGS[SETTINGS_SECTION]:
         ts_pauth = '&AUTH=%s' % (MY_SETTINGS[SETTINGS_SECTION][TS_PAUTH], )
@@ -150,31 +195,13 @@ def get_tvh_chan_urls():
                 name_unknown += 1
 
             chan_list.append(chan_name)
-            if chan_name not in chan_map:
-                chan_map[chan_name] = {}
+            chan_map[chan_name] = copy.deepcopy(entry)
+            chan_map[chan_name]['strm_url'] = '%s/%s/%s?profile=audio-only%s' % (
+                                   MY_SETTINGS[SETTINGS_SECTION][TS_URL],
+                                   TS_URL_STR,
+                                   entry['uuid'],
+                                   ts_pauth, )
 
-            # store the channel specific info
-            ch_map = chan_map[chan_name]
-
-            if 'tags' in entry:
-                ch_map['tags'] = entry['tags']
-
-            if 'number' in entry:
-                ch_map['number'] = entry['number']
-            else:
-                ch_map['number'] = number_unknown
-                name_unknown -= 1
-
-            ch_map['uuid'] = entry['uuid']
-
-            ch_map['url'] = '%s/%s/%s?profile=audio-only%s' % (
-                            MY_SETTINGS[SETTINGS_SECTION][TS_URL],
-                            TS_URL_STR,
-                            entry['uuid'],
-                            ts_pauth, )
-
-            if 'icon_public_url' in entry:
-                ch_map['icon_public_url'] = entry['icon_public_url']
 
         chan_list_sorted = sorted(chan_list, key=lambda s: s.casefold())
 
@@ -287,7 +314,7 @@ def play_channel(chan_data):
     #print('Debug, play_channel')
     #print('%s' % json.dumps(chan_data, sort_keys=True, indent=4, separators=(',', ': ')) )
 
-    url = chan_data['url']
+    url = chan_data['strm_url']
 
     play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, TS_PLAY)
     play_cmd_array = play_cmd.split()
@@ -388,6 +415,10 @@ def radio_app():
                 if chan_num > 0:
                     chan_num = chan_num - 1
                 print('Channel %s' % (chan_names[chan_num], ))
+
+            elif KEY_STROKE == 's':
+                tts_file = chan_data_to_tts_file(chan_map[chan_names[chan_num]])
+                play_file(tts_file)
 
             elif KEY_STROKE == 'u':
                 DBG_LEVEL and print('up')
