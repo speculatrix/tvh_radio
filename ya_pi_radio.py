@@ -8,7 +8,7 @@ This is a multi-mode radio app for a Pi, for streaming from the internet or from
 import argparse
 import configparser
 import copy
-#import datetime
+import datetime
 #import hashlib
 import json
 import os
@@ -107,14 +107,28 @@ m - mode change
 p - play channel
 q - quit
 s - speak channel name
+t - speak time
 u - up a channel
 ''')
 
 
 ##########################################################################################
+def text_to_speech_file(input_text, output_file):
+    '''uses Google to turn supplied text into speech in the file'''
+
+    goo_url = '%s%s' % (GOOGLE_TTS, urllib.parse.quote(input_text), )
+    opener = urllib.request.build_opener()
+    opener.addheaders =[('User-agent', G_TTS_UA), ]
+
+    write_handle = open(output_file, 'wb')
+    with opener.open(goo_url) as goo_handle:
+        write_handle.write(goo_handle.read())
+
+
+##########################################################################################
 def chan_data_to_tts_file(chan_data):
     '''given the channel data, returns the name of a sound file which is the
-       channel name; if file doesn't exist uses Google to generate it'''
+       channel name; calls text_to_speech_file to generate it if required'''
 
     global DBG_LEVEL
     global MY_SETTINGS
@@ -122,17 +136,19 @@ def chan_data_to_tts_file(chan_data):
     tts_file_name = '%s.mp3' % (os.path.join(os.environ['HOME'], SETTINGS_DIR, chan_data['uuid']), )
 
     if not os.path.isfile(tts_file_name):
-        goo_url = '%s%s' % (GOOGLE_TTS, urllib.parse.quote(chan_data['name']), )
-        print('goo_url %s, tts_file_name %s' % (goo_url, tts_file_name, ))
-
-        tts_out = open(tts_file_name, 'wb')
-
-        opener = urllib.request.build_opener()
-        opener.addheaders =[('User-agent', G_TTS_UA), ]
-        with opener.open(goo_url) as goo_handle:
-            tts_out.write(goo_handle.read())
+        text_to_speech_file(chan_data['name'], tts_file_name)
 
     return(tts_file_name)
+
+
+##########################################################################################
+def speak_time():
+
+    now = datetime.datetime.now()
+    the_time_is = now.strftime('the time is %M minutes past %H, on %b %d, %Y')
+    time_file = os.path.join(os.path.join(os.environ['HOME'], SETTINGS_DIR, 'time_file.mp3'))
+    text_to_speech_file(the_time_is, time_file)
+    play_file(time_file)
 
 
 ##########################################################################################
@@ -419,6 +435,9 @@ def radio_app():
             elif KEY_STROKE == 's':
                 tts_file = chan_data_to_tts_file(chan_map[chan_names[chan_num]])
                 play_file(tts_file)
+
+            elif KEY_STROKE == 't':
+                speak_time()
 
             elif KEY_STROKE == 'u':
                 DBG_LEVEL and print('up')
