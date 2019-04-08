@@ -2,8 +2,9 @@
 
 Yet Another Pi Radio application
 
-This one is a little different. For a start, it can speak to tell you the channel you're about to play.
-Secondly, it understands the TV Headend API, thus allowing you to suse a TVH server as a radio source.
+This one is a little different. 
+* Firstly, it can speak to tell you the channel you're about to play. And it can tell you the time.
+* Secondly, it understands the TV Headend API, thus allowing you to use a TVH server as a radio source.
 
 
 # Purpose
