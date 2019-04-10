@@ -44,7 +44,7 @@ Login to TVH as an administrator, and open the Configuration tab, choose
 Stream, then choose Stream Profiles. Add a stream, starting with the
 type Audio, set the name to audio-only, and click Apply.
  
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_pi_radio/master/create_audio_only_profile.png)
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/ya_pi_radio/master/create_audio_only_profile.png)
 
 
 
