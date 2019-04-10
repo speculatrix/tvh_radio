@@ -142,30 +142,6 @@ def chan_data_to_tts_file(chan_data):
 
 
 ##########################################################################################
-def speak_time():
-
-    now = datetime.datetime.now()
-    the_time_is = now.strftime('the time is %M minutes past %H, on %b %d, %Y')
-    time_file = os.path.join(os.path.join(os.environ['HOME'], SETTINGS_DIR, 'time_file.mp3'))
-    text_to_speech_file(the_time_is, time_file)
-    play_file(time_file)
-
-
-##########################################################################################
-def play_file(audio_file_name):
-
-    global DBG_LEVEL
-    global MY_SETTINGS
-
-    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, TS_PLAY)
-    play_cmd_array = play_cmd.split()
-    play_cmd_array.append(audio_file_name)
-    #print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
-
-    subprocess.call(play_cmd_array)
-
-
-##########################################################################################
 def get_tvh_chan_urls():
     '''gets the channel listing and generats an ordered dict by name'''
 
@@ -319,16 +295,42 @@ def settings_editor(settings_dir, settings_file):
               (settings_file, ))
         exit(1)
 
+
 ##########################################################################################
-# play_channel
-def play_channel(chan_data):
-    '''starts player on channel number'''
+def play_time():
+
+    now = datetime.datetime.now()
+    the_time_is = now.strftime('the time is %M minutes past %H, on %b %d, %Y')
+    time_file = os.path.join(os.path.join(os.environ['HOME'], SETTINGS_DIR, 'time_file.mp3'))
+    text_to_speech_file(the_time_is, time_file)
+    play_file(time_file)
+
+
+##########################################################################################
+def play_file(audio_file_name):
 
     global DBG_LEVEL
     global MY_SETTINGS
 
-    #print('Debug, play_channel')
-    #print('%s' % json.dumps(chan_data, sort_keys=True, indent=4, separators=(',', ': ')) )
+    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, TS_PLAY)
+    play_cmd_array = play_cmd.split()
+    play_cmd_array.append(audio_file_name)
+    #print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
+
+    subprocess.call(play_cmd_array)
+
+
+##########################################################################################
+# play_channel
+def play_channel(event, chan_data):
+    '''starts player on channel number'''
+
+    global DBG_LEVEL
+    global MY_SETTINGS
+    global STOP_PLAYBACK
+    global PLAYER_PID
+
+    #print('Debug, playing channel\n%s' % json.dumps(chan_data, sort_keys=True, indent=4, separators=(',', ': ')) )
 
     url = chan_data['strm_url']
 
@@ -337,9 +339,26 @@ def play_channel(chan_data):
     play_cmd_array.append(url)
     print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
 
-    subprocess.call(play_cmd_array)
+    player_proc = subprocess.Popen(play_cmd_array)
+    PLAYER_PID = player_proc.pid
+    #print('player pid %d' % (PLAYER_PID, ))
+    player_active = True
+    while player_active:
+        try:
+            player_proc.wait(timeout=1)
+            #print('Player finished')
+            player_active = False
+            STOP_PLAYBACK = False
+            PLAYER_PID = 0
 
+        except subprocess.TimeoutExpired:
+            pass
+            #print('Player still running')
 
+        if STOP_PLAYBACK:
+            player_proc.kill()
+
+    print('play_channel exiting')
 
 ##########################################################################################
 # SIGINT/ctrl-c handler
@@ -353,9 +372,11 @@ def sigint_handler(_signal_number, _frame):
     QUIT_FLAG = True
     EVENT.set()
 
+
 ##########################################################################################
 def keyboard_listen_thread(event):
-    '''keyboard listening thread'''
+    '''keyboard listening thread, sets raw input and uses sockets to
+       get single key strokes without waiting, triggering an event.'''
 
     global QUIT_FLAG
     global KEY_STROKE
@@ -384,6 +405,8 @@ def radio_app():
     global EVENT
     global QUIT_FLAG
     global KEY_STROKE
+    global STOP_PLAYBACK
+    global PLAYER_PID
 
     print('Error, no actual functionality yet')
 
@@ -411,6 +434,11 @@ def radio_app():
         if KEY_STROKE != '':
             if KEY_STROKE == 'q':
                 print('Quit!')
+                while PLAYER_PID != 0:
+                    print('Waiting to stop playback')
+                    STOP_PLAYBACK = True
+                    time.sleep(1)
+
                 QUIT_FLAG = 1
 
             elif KEY_STROKE == '?' or KEY_STROKE == 'h':
@@ -423,8 +451,17 @@ def radio_app():
 
             elif KEY_STROKE == 'p':
                 DBG_LEVEL or print('play')
-                print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
-                play_channel(chan_map[chan_names[chan_num]])
+                if PLAYER_PID == 0:
+                    print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
+                    chan_data = chan_map[chan_names[chan_num]]
+                    #play_channel(chan_data)
+                    threads = []
+                    threads.append(Thread(target=play_channel, args=(EVENT, chan_data, ) ))
+                    threads[-1].start()
+                else:
+                    print('Setting STOP_PLAYBACK true')
+                    STOP_PLAYBACK = True
+
 
             elif KEY_STROKE == 'd':
                 DBG_LEVEL and print('down')
@@ -437,7 +474,7 @@ def radio_app():
                 play_file(tts_file)
 
             elif KEY_STROKE == 't':
-                speak_time()
+                play_time()
 
             elif KEY_STROKE == 'u':
                 DBG_LEVEL and print('up')
@@ -476,6 +513,8 @@ def main():
     global RADIO_MODE
     global EVENT
     global KEY_STROKE
+    global STOP_PLAYBACK
+    global PLAYER_PID
 
     # settings_file is the fully qualified path to the settings file
     settings_dir = os.path.join(os.environ['HOME'], SETTINGS_DIR)
@@ -511,6 +550,9 @@ if __name__ == "__main__":
     DBG_LEVEL = 0
     KEY_STROKE = ''
     QUIT_FLAG = False
+    STOP_PLAYBACK = False
+    PLAYER_PID = 0
+
     EVENT = Event()
     MY_SETTINGS = configparser.ConfigParser()
     main()
