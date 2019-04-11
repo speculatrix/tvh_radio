@@ -203,7 +203,7 @@ def get_tvh_chan_urls():
             #print('adding %s<br />' % (chan, ))
             ordered_chan_map[chan] = chan_map[chan]
 
-    if DBG_LEVEL >= 0:
+    if DBG_LEVEL > 0:
         print('%s' % json.dumps(ordered_chan_map, sort_keys=True, \
                                 indent=4, separators=(',', ': ')) )
 
