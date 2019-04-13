@@ -55,6 +55,7 @@ TS_PLAY = 'ts_play'
 
 TITLE = 'title'
 DFLT = 'default'
+HELP = 'help'
 
 
 # the settings file is stored in a directory under $HOME
@@ -79,11 +80,13 @@ SETTINGS_DEFAULTS = {
     TS_PAUTH: {
         TITLE: 'Persistent Auth Token',
         DFLT: TS_PAUTH,
+        HELP: 'login to the TV headend and edit the user and set persistent auth on, then save, then re-edit and scroll down to see the persistent auth value',
     },
     TS_PLAY: {
         TITLE: 'Player Command Line',
-        DFLT: '/usr/bin/omxplayer -o alsa',
+        DFLT: '/usr/bin/omxplayer.bin -o alsa',
         #DFLT: 'vlc -I dummy --novideo',
+        HELP: 'use "/usr/bin/omxplayer.bin -o alsa" or "vlc -I dummy --novideo"',
     },
 }
 
@@ -339,9 +342,10 @@ def play_channel(event, chan_data):
     play_cmd_array.append(url)
     print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
 
-    player_proc = subprocess.Popen(play_cmd_array)
+    player_proc = subprocess.Popen(play_cmd_array, shell=False)
     PLAYER_PID = player_proc.pid
-    #print('player pid %d' % (PLAYER_PID, ))
+    print(str(player_proc) )
+    print('player pid %d' % (PLAYER_PID, ))
     player_active = True
     while player_active:
         try:
@@ -407,8 +411,6 @@ def radio_app():
     global KEY_STROKE
     global STOP_PLAYBACK
     global PLAYER_PID
-
-    print('Error, no actual functionality yet')
 
     signal.signal(signal.SIGINT, sigint_handler)
 
