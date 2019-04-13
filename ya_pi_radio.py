@@ -66,27 +66,30 @@ SETTINGS_SECTION = 'user'
 
 SETTINGS_DEFAULTS = {
     TS_URL: {
-        TITLE: 'URL of TV Headend Server',
+        TITLE: 'URL',
         DFLT: 'http://tvh.example.com:9981',
+        HELP: 'This is the URL of the TV Headend Server main web interface, without the trailing slash',
     },
     TS_USER: {
-        TITLE: 'Username on TVH server',
+        TITLE: 'User',
         DFLT: TS_USER,
+        HELP: 'This is a user with API access and streaming rights',
     },
     TS_PASS: {
-        TITLE: 'Password on TVH server',
+        TITLE: 'Pass',
         DFLT: TS_PASS,
+        HELP: 'Password on TVH server',
     },
     TS_PAUTH: {
-        TITLE: 'Persistent Auth Token',
+        TITLE: 'P.A.T.',
         DFLT: TS_PAUTH,
-        HELP: 'login to the TV headend and edit the user and set persistent auth on, then save, then re-edit and scroll down to see the persistent auth value',
+        HELP: 'The Persistent Auth Token can be found by logging into the TV headend, editing the user to set persistent auth on, then saving, then re-edit and scroll down to see the persistent auth value',
     },
     TS_PLAY: {
-        TITLE: 'Player Command Line',
+        TITLE: 'Player',
         DFLT: '/usr/bin/omxplayer.bin -o alsa',
         #DFLT: 'vlc -I dummy --novideo',
-        HELP: 'use "/usr/bin/omxplayer.bin -o alsa" or "vlc -I dummy --novideo"',
+        HELP: 'Command to play media with arguments, try "/usr/bin/omxplayer.bin -o alsa" or "vlc -I dummy --novideo"',
     },
 }
 
@@ -282,13 +285,15 @@ def settings_editor(settings_dir, settings_file):
             else:
                 setting_value = ''
 
-        print('%s [%s]: ' % (setting, setting_value, ), end='')
+        print('Hint: %s' % (SETTINGS_DEFAULTS[setting][HELP], ))
+        print('%s [%s]: ' % (SETTINGS_DEFAULTS[setting][TITLE], setting_value, ), end='')
         sys.stdout.flush()
         new_value = sys.stdin.readline().rstrip()
         if new_value != '' and new_value != '\n':
             MY_SETTINGS.set(SETTINGS_SECTION, setting, new_value)
         else:
             MY_SETTINGS.set(SETTINGS_SECTION, setting, setting_value)
+        print('')
 
     config_file_handle = open(settings_file, 'w')
     if config_file_handle:
