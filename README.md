@@ -98,7 +98,7 @@ Acquire a Raspberry Pi, power supply and memory card.
 
 ## TV Headend
 
-TL;DR: create an "audio-only" profile
+### TL;DR: create an "audio-only" profile
 
 We want the most efficient stream possible, which means getting the TVH
 server to only pass on the audio channel. This reduces the CPU load on
@@ -111,6 +111,13 @@ Stream, then choose Stream Profiles. Add a stream, starting with the
 type Audio, set the name to audio-only, and click Apply.
  
 ![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_pi_radio/master/create_audio_only_profile.png)
+
+
+### Create a user with persistent authentication token
+
+Create a user for playing media, enabling persistent authentication, and copy off that token and put into the settings.
+
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_pi_radio/master/webby_user.png)
 
 
 
