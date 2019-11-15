@@ -50,8 +50,7 @@ type Audio, set the name to audio-only, and click Apply.
 
 Create a user for playing media, enabling persistent authentication, and copy off that token and put into the settings.
 
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_pi_radio/master/webby_user.png)
-
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/ya_pi_radio/master/webby_user.png)
 
 
 
