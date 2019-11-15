@@ -22,10 +22,10 @@ This one is a little different.
 
 Acquire a Raspberry Pi, power supply and memory card. 
 
-* Install Raspbian onto the card,
+* Install Raspbian onto the card
 * Power up the Pi whilst connected to a display
 * Configure the WiFi
-* Set the password of the pi user.
+* Set the password of the pi user
 * Install all updates
 
 
@@ -65,6 +65,7 @@ Create a user for playing media, enabling persistent authentication, and copy of
 * run it
 * on first run, you have to go through setup, so provide the settings
 * follow the onscreen instructions
+* if you need to redo the settings, run it again with the -s option to go into settings
 
 
 
@@ -77,3 +78,5 @@ https://thepihut.com/collections/raspberry-pi-hats/products/display-o-tron-hat
 
 I also intend to make it possible to use a small LCD display to give status.
 
+
+... end ...
