@@ -79,6 +79,18 @@ off the username and the token and put into the settings.
 * if you need to redo the settings, run it again with the -s option to go into settings
 
 
+key functions
+
+* ? - help
+* d - down a channel
+* h - help
+* m - mode change
+* p - play channel
+* q - quit
+* s - speak channel name
+* t - speak time
+* u - up a channel
+
 
 ## Road Map
 
