@@ -4,15 +4,25 @@ Yet Another Pi Radio application
 
 # Purpose
 
-This project is for allowing a Raspberry Pi to be used as a radio-like appliance, streaming from a TV Headend server or from a list of URLs (TBD).
+This project is for allowing a Raspberry Pi to be used as a radio-like
+appliance, streaming from a TV Headend server or from a list of URLs (TBD).
 
-The software here is a command line interface, so that the Pi can be used headless with just a keyboard. This project will be expanded to include instructions on fitting into a re-purposed radio shell, and setting the Pi to boot straight into this application.
+That said, it isn't limited to being run on a Pi, you can run it anywhere you
+can run Python. I use it on my laptop which runs Fedora, but it should run on
+any linux distro which supports a modern python3.
 
-I wrote this partly to stretch my python skills, but mostly because I wanted to be able to turn a Raspberry Pi0/W into the basis of a streaming receiver.
+The software here is a command line interface, so that the Pi can be used
+headless with just a keyboard. This project will be expanded to include
+instructions on fitting into a re-purposed radio shell, and setting the
+Pi to boot straight into this application.
+
+I wrote this partly to stretch my python skills, but mostly because I wanted
+to be able to turn a Raspberry Pi0/W into the basis of a streaming receiver.
 
 This one is a little different. 
-* Firstly, it can speak to tell you the channel you're about to play. And it can tell you the time.
-* Secondly, it understands the TV Headend API, thus allowing you to use a TVH server as a radio source.
+* Firstly, it understands the TV Headend API, thus allowing you to use a TVH server as a radio source.
+* Secondly, it can speak to tell you the channel you're about to play.
+* Thirdly, it can tell you the time.
 
 
 
