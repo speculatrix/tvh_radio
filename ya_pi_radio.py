@@ -89,7 +89,7 @@ SETTINGS_DEFAULTS = {
         TITLE: 'Player',
         DFLT: '/usr/bin/omxplayer.bin -o alsa',
         #DFLT: 'vlc -I dummy --novideo',
-        HELP: 'Command to play media with arguments, try "/usr/bin/omxplayer.bin -o alsa" or "vlc -I dummy --novideo"',
+        HELP: 'Command to play media with arguments, try "/usr/bin/omxplayer.bin -o alsa" or "vlc -I dummy --novideo --play-and-exit"',
     },
 }
 
