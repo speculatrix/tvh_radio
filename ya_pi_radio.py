@@ -110,7 +110,7 @@ def print_help():
 d - down a channel
 h - help
 m - mode change
-p - play channel
+p - play/stop channel
 q - quit
 s - speak channel name
 t - speak time
