@@ -46,6 +46,7 @@ G_TTS_UA = 'VLC/3.0.2 LibVLC/3.0.2'
 # string constants
 TS_URL_CHN = 'api/channel/grid'
 TS_URL_STR = 'stream/channel'
+TS_URL_PEG = 'api/passwd/entry/grid'
 
 TS_URL = 'ts_url'
 TS_USER = 'ts_user'
@@ -117,7 +118,31 @@ t - speak time
 u - up a channel
 ''')
 
+##########################################################################################
+def api_test_func():
+    '''gets the channel listing and generats an ordered dict by name'''
 
+    global DBG_LEVEL
+
+    ts_url = MY_SETTINGS[SETTINGS_SECTION][TS_URL]
+    ts_user = MY_SETTINGS[SETTINGS_SECTION][TS_USER]
+    ts_pass = MY_SETTINGS[SETTINGS_SECTION][TS_PASS]
+    ts_query = '%s/%s' % (
+        ts_url,
+        TS_URL_PEG,
+    )
+    ts_response = requests.get(ts_query, auth=(ts_user, ts_pass))
+    print('<!-- get_tvh_chan_urls URL %s -->' % (ts_query, ))
+    if ts_response.status_code != 200:
+        print('>Error code %d\n%s' % (ts_response.status_code, ts_response.content, ))
+        return
+
+    ts_json = ts_response.json()
+    #if DBG_LEVEL > 0:
+    print('%s' % json.dumps(ts_json, sort_keys=True, \
+                                indent=4, separators=(',', ': ')) )
+
+ 
 ##########################################################################################
 def text_to_speech_file(input_text, output_file):
     '''uses Google to turn supplied text into speech in the file'''
@@ -439,7 +464,10 @@ def radio_app():
         EVENT.wait() # Blocks until the flag becomes true.
         #print('Wait complete')
         if KEY_STROKE != '':
-            if KEY_STROKE == 'q':
+            if KEY_STROKE == 'A':   # secret key code :-)
+                api_test_func()
+                
+            elif KEY_STROKE == 'q':
                 print('Quit!')
                 while PLAYER_PID != 0:
                     print('Waiting to stop playback')
