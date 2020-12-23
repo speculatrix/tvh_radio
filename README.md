@@ -108,7 +108,9 @@ key functions
 * u - up a channel
 
 
-## Road Map
+# Road Map
+
+## Key/input customisation
 
 I intend to make the key presses customisable, so you could, say, use a
 numeric USB key pad to operate it. Also, to make it possible to use GPIOs
@@ -116,6 +118,14 @@ and switches instead of a USB button board, something like the Display-O-Tron Ha
 https://thepihut.com/collections/raspberry-pi-hats/products/display-o-tron-hat
 
 I also intend to make it possible to use a small LCD display to give status.
+
+## non-TVH streaming services
+
+
+## web API for remote control
+
+
+## favourites list
 
 
 ... end ...
