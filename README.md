@@ -1,9 +1,11 @@
-# The ya_pi_radio Project
-
-Yet Another Pi Radio application
+# The tvh_radio Project
 
 A streaming radio client for a TV Headend server which will be expanded to
 play other streams.
+
+Formerly known as the Yet Another Pi Radio application before it took on a
+life of its own.
+
 
 
 # Purpose
@@ -69,7 +71,7 @@ Login to TVH as an administrator, and open the Configuration tab, choose
 Stream, then choose Stream Profiles. Add a stream, starting with the
 type Audio, set the name to audio-only, and click Apply.
  
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/ya_pi_radio/master/create_audio_only_profile.png)
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/create_audio_only_profile.png)
 
 
 ### Create a user with persistent authentication token
@@ -77,14 +79,14 @@ type Audio, set the name to audio-only, and click Apply.
 Create a user for playing media, enabling persistent authentication, and copy
 off the username and the token and put into the settings.
 
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/ya_pi_radio/master/webby_user.png)
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/webby_user.png)
 
 
 
 ## Getting the program
 
 * git clone this repository
-* make ya_pi_radio.py executable, 
+* make tvh_radio.py executable if necessary with "chmod ugo+x tvh_radio.py"
 
 
 ## Running the program
