@@ -25,10 +25,14 @@ There are many radio streaming programs around, why is this one different?
 
 * Firstly, it understands the TV Headend API, thus allowing you to use a
   TVH server as a radio source.
-* Secondly, it can speak to tell you the channel you're about to play.
-* Thirdly, it can speak the current time and date
+* Secondly, it will play other user-definable streams
+* Thirdly, you can save streams as favourites
+* Fourthly, it can speak to tell you the channel you're about to play.
+* Fifthly, it can speak the current time and date
 
-The speaking function uses Google's text to speech engine.
+
+Note: the speaking function uses Google's text to speech engine, so you need
+an ok internet connection for this to download the audio.
 
 
 ## Usage
@@ -101,9 +105,10 @@ key functions
 
 * ? - help
 * d - down a channel
+* f - favourite or unfavourite a channel
 * h - help
-* m - mode change
-* p - play channel
+* m - mode change, from TVH to stream to favourites
+* p - play channel/stop channel
 * q - quit
 * s - speak channel name
 * t - speak time
@@ -129,5 +134,6 @@ I also intend to make it possible to use a small LCD display to give status.
 
 ## favourites list
 
+basic favouriting is complete
 
 ... end ...

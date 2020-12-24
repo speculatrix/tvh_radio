@@ -125,6 +125,7 @@ def print_help():
 ? - help
 d - down a channel
 h - help
+f - favourite or unfavourite a channel
 m - mode change
 p - play/stop channel
 q - quit
