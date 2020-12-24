@@ -575,7 +575,6 @@ def radio_app():
     # SIGINT and keyboard strokes and (one day) GPIO events all get funnelled here
     while not QUIT_FLAG:
         EVENT.wait() # Blocks until the flag becomes true.
-        print('Current channel = %s' % (chan_names[chan_num], ))
         if KEY_STROKE != '':
             if KEY_STROKE == 'A':   # secret key code :-)
                 api_test_func()
@@ -684,6 +683,7 @@ def radio_app():
 
             KEY_STROKE = ''
 
+        print('Current channel = %s' % (chan_names[chan_num], ))
         EVENT.clear() # Resets the flag.
 
     for thread in threads:
