@@ -113,7 +113,7 @@ SETTINGS_DEFAULTS = {
 RM_TVH = 'TVH'      # tv headend channels
 RM_STR = 'STR'      # streams list
 RM_FAV = 'FAV'      # favourites list
-RADIO_MODE = RM_TVH # default
+RADIO_MODE = RM_FAV # default
 
 
 ##########################################################################################
@@ -159,6 +159,37 @@ def api_test_func():
 
 
 ##########################################################################################
+def write_list_file(text_header, file_name, list_data):
+    ''' writes the data file which is a streams list or a favourites list
+
+    prints the text header, which is usually a comment
+
+    lines are then paired, the first is the name of the stream, the second is the URL
+
+    returns True or False on Success or Failure
+    '''
+
+    if not list_data:
+        return False
+
+    fh_list = open(file_name, 'w')
+    if not fh_list:
+        print('Error, streams listing file %s was unwritable' % (file_name, ))
+        return False
+
+    fh_list.write(text_header)
+    fh_list.write('\n')
+
+    for (stream_name, stream_url) in list_data.items():
+        fh_list.write(stream_name)
+        fh_list.write('\n')
+        fh_list.write(stream_url)
+        fh_list.write('\n')
+
+    fh_list.close()
+    return True
+
+##########################################################################################
 def read_list_file(file_name):
     ''' reads the data file which is a streams list or a favourites list
 
@@ -176,8 +207,9 @@ def read_list_file(file_name):
         print('Error, streams listing file %s was unreadable or missing' % (file_name, ))
         return list_data
 
-    # simple state machine based on the previous line read; read lines, skip over comments
-    # and any two non-comment lines are assumed to be stream name then stream URL
+    # simple state machine based on the previous line read
+    # read lines, skip over comments, and any two non-comment lines are
+    # assumed to be stream name then stream URL
     next_line = '#'
     prev_line = '#'
     while next_line != '':
@@ -192,9 +224,9 @@ def read_list_file(file_name):
             continue
 
         if prev_line != '' and next_line != '':
-            print('Found %s  ==>> %s' % (prev_line, next_line, ))
+            #print('Found %s  ==>> %s' % (prev_line, next_line, ))
             list_data[prev_line] = next_line
-            next_line = '#'     # block these lines
+            next_line = '#'     # start searching again
 
         prev_line = next_line
 
@@ -328,7 +360,7 @@ def check_load_config_file(settings_dir, settings_file):
         error_text = 'Error, failed parse config file "%s"' % (settings_file, )
         return(-1, error_text)
 
-    print('Debug, check_load_config_file: %s' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], ) )
+    #print('Debug, check_load_config_file TVH url is %s' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], ) )
 
     return (0, 'OK')
 
@@ -482,6 +514,14 @@ def keyboard_listen_thread(event):
 
 
 ##########################################################################################
+def save_favourites(list_data):
+    ''' saves the current favourites to a file '''
+
+    write_list_file(FAVOURITES_HDR,
+                    os.path.join(os.environ['HOME'],SETTINGS_DIR, FAVOURITES_LIST),
+                    list_data)
+
+##########################################################################################
 def radio_app():
     '''this runs the radio appliance'''
 
@@ -501,35 +541,41 @@ def radio_app():
 
 
     streams_chan_map = read_list_file(os.path.join(os.environ['HOME'],
-                                      SETTINGS_DIR, FAVOURITES_LIST))
+                                      SETTINGS_DIR, STREAMS_LIST))
     if streams_chan_map:
-        print('streams_list = %s' % (streams_chan_map, ))
+        print('There are %d streams' % (len(streams_chan_map), ))
 
     favourites_chan_map = read_list_file(os.path.join(os.environ['HOME'],
-                                         SETTINGS_DIR, STREAMS_LIST))
+                                      SETTINGS_DIR, FAVOURITES_LIST))
     if favourites_chan_map:
-        print('favourites_list = %s' % (favourites_chan_map, ))
+        print('There are %d favourites' % (len(favourites_chan_map), ))
 
+    tvh_chan_map = get_tvh_chan_urls()
 
-    tvh_chan_map = {}
     if RADIO_MODE == RM_TVH:
-        tvh_chan_map = get_tvh_chan_urls()
+        print('tvh radio mode')
+        chan_map = tvh_chan_map
+    elif RADIO_MODE == RM_STR:
+        print('streaming radio mode')
+        chan_map = streams_chan_map
+    elif RADIO_MODE == RM_FAV:
+        print('favourites radio mode')
+        chan_map = favourites_chan_map
     else:
-        print('Sorry, only TVH supported')
+        print('Error, invalid radio mode')
+        sys.exit(1)
 
-
-    # starting in mode TVH
-    chan_map = tvh_chan_map
+    # sort and count channels for whatever mode we're in
     chan_names = list(chan_map.keys())  # get an indexable array
     max_chan = len(chan_map)            # max channel number
 
     chan_num = 0                        # start at first channel
 
+    print('Current channel = %s' % (chan_names[chan_num], ))
     # SIGINT and keyboard strokes and (one day) GPIO events all get funnelled here
-    print('radio app waiting on event')
     while not QUIT_FLAG:
         EVENT.wait() # Blocks until the flag becomes true.
-        #print('Wait complete')
+        print('Current channel = %s' % (chan_names[chan_num], ))
         if KEY_STROKE != '':
             if KEY_STROKE == 'A':   # secret key code :-)
                 api_test_func()
@@ -546,7 +592,6 @@ def radio_app():
                 DBG_LEVEL and print('down')
                 if chan_num > 0:
                     chan_num = chan_num - 1
-                print('Channel %s' % (chan_names[chan_num], ))
 
             elif KEY_STROKE == 'f':
                 DBG_LEVEL and print('favourite')
@@ -560,6 +605,8 @@ def radio_app():
                 if RADIO_MODE == RM_FAV:
                     max_chan = len(chan_map)
                     favourites_chan_map = dict(sorted(favourites_chan_map.items()))
+
+                save_favourites(favourites_chan_map)
 
 
             elif KEY_STROKE == 'm':
@@ -623,7 +670,6 @@ def radio_app():
                 DBG_LEVEL and print('up')
                 if chan_num < max_chan - 1:
                     chan_num = chan_num + 1
-                print('Channel %s' % (chan_names[chan_num], ))
 
             elif KEY_STROKE == 'm':
                 if RADIO_MODE == RM_TVH:
