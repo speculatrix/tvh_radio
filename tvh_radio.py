@@ -200,6 +200,10 @@ def read_list_file(file_name):
     returns a dict, with the key being the stream name
     '''
 
+    if not os.path.isfile(file_name):
+        print('Warning, streams listing file %s nonexistent' % (file_name, ))
+        return {}
+
     list_data = {}
     #print('Debug, attempting to open and read lines from %s' % (file_name, ))
 
@@ -546,10 +550,14 @@ def radio_app():
     if streams_chan_map:
         print('There are %d streams' % (len(streams_chan_map), ))
 
+    # get the favourites; if favourites are empty change the default
+    # mode to TVH from favourites
     favourites_chan_map = read_list_file(os.path.join(os.environ['HOME'],
                                       SETTINGS_DIR, FAVOURITES_LIST))
     if favourites_chan_map:
         print('There are %d favourites' % (len(favourites_chan_map), ))
+    else:
+        RADIO_MODE = RM_TVH
 
     tvh_chan_map = get_tvh_chan_urls()
 
