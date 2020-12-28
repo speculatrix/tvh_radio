@@ -22,7 +22,9 @@ import select
 import tty
 #import collections
 import termios
+
 import urllib
+from http.server import HTTPServer, BaseHTTPRequestHandler
 import requests
 
 # requires making code less readable:
@@ -43,6 +45,8 @@ URL_GITHUB_HASH_SELF = 'https://api.github.com/repos/speculatrix/tvh_radio/tvh_r
 GOOGLE_TTS = 'http://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=en&q='
 G_TTS_UA = 'VLC/3.0.2 LibVLC/3.0.2'
 
+KEYBOARD_POLL_TIMEOUT = 0.5
+
 # string constants
 TS_URL_CHN = 'api/channel/grid'
 TS_URL_STR = 'stream/channel'
@@ -60,6 +64,7 @@ TITLE = 'title'
 DFLT = 'default'
 HELP = 'help'
 
+valid_web_commands = ('d', 'm', 'p', 's', 't', 'u', )
 
 # the settings file is stored in a directory under $HOME
 SETTINGS_DIR = '.tvh_radio'
@@ -168,6 +173,7 @@ def api_test_func():
 
 ##########################################################################################
 def channel_editor():
+    ''' function to invoke external channel editor ??? '''
 
     print('=== Channel Editor ===')
 
@@ -377,7 +383,8 @@ def check_load_config_file(settings_dir, settings_file):
         error_text = 'Error, failed parse config file "%s"' % (settings_file, )
         return(-1, error_text)
 
-    #print('Debug, check_load_config_file TVH url is %s' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], ) )
+    #print('Debug, check_load_config_file TVH url is %s'
+    #      % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], ) )
 
     return (0, 'OK')
 
@@ -457,7 +464,7 @@ def play_file(audio_file_name):
 
 ##########################################################################################
 # play_channel
-def play_channel(event, stream_url):
+def play_channel(stream_url):
     ''' starts playing stream, until STOP_PLAYBACK seen then it kills the player '''
 
     global DBG_LEVEL
@@ -508,7 +515,7 @@ def sigint_handler(_signal_number, _frame):
 
 
 ##########################################################################################
-def keyboard_listen_thread(event):
+def keyboard_listen_thread():
     '''keyboard listening thread, sets raw input and uses sockets to
        get single key strokes without waiting, triggering an event.'''
 
@@ -520,8 +527,8 @@ def keyboard_listen_thread(event):
     tty.setcbreak(sys.stdin.fileno())
 
     while QUIT_FLAG == 0:
-        # we need a timeout just so's we occasionally check QUIT_FLAG
-        readable_sockets, _o, _e = select.select([sys.stdin], [], [], 0.2)
+        # a bit ugly, but use a timeout just to occasionally check QUIT_FLAG
+        readable_sockets, _o, _e = select.select([sys.stdin], [], [], KEYBOARD_POLL_TIMEOUT)
         if readable_sockets:
             KEY_STROKE = sys.stdin.read(1)
             EVENT.set()
@@ -539,6 +546,34 @@ def save_favourites(list_data):
                     list_data)
 
 ##########################################################################################
+class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+    ''' minimal http request handler for remote control '''
+
+    global KEY_STROKE
+    global EVENT
+
+    def do_GET(self):   # pylint:disable=invalid-name
+        ''' implement the http GET method '''
+        self.send_response(200)
+        self.end_headers()
+        # look for the letter after the "GET /"
+        KEY_STROKE = str(self.requestline[5])
+        if KEY_STROKE in valid_web_commands:
+            response_string = 'tvh_radio.py command received ' + KEY_STROKE + '\n'
+            EVENT.set()
+        else:
+            response_string = 'tvh_radio.py command unknown ' + KEY_STROKE + '\n'
+        self.wfile.write(bytearray(response_string, encoding ='ascii'))
+
+##########################################################################################
+def start_web_listener(httpd):
+    ''' a very primitive web interface for remote control '''
+
+    global QUIT_FLAG
+    global KEY_STROKE
+    httpd.serve_forever()   # never returns
+
+##########################################################################################
 def radio_app():
     '''this runs the radio appliance'''
 
@@ -550,13 +585,23 @@ def radio_app():
     global STOP_PLAYBACK
     global PLAYER_PID
 
+    # trap ctrl-x/sigint so we can clean up
     signal.signal(signal.SIGINT, sigint_handler)
 
+    # start a thread to listen to the keyboard
     threads = []
-    threads.append(Thread(target=keyboard_listen_thread, args=(EVENT, )))
+    threads.append(Thread(target=keyboard_listen_thread))
     threads[-1].start()
 
+    # do we need to start a thread to act as the web server?
+    ts_wport = MY_SETTINGS.get(SETTINGS_SECTION, TS_WPORT)
+    if ts_wport and ts_wport != '' and ts_wport.isnumeric():
+        httpd = HTTPServer(('localhost', int(ts_wport)), SimpleHTTPRequestHandler)
+        threads.append(Thread(target=start_web_listener, args=(httpd, )))
+        threads[-1].start()
 
+
+    # read the streams file into a boringly simple dict
     streams_chan_map = read_list_file(os.path.join(os.environ['HOME'],
                                       SETTINGS_DIR, STREAMS_LIST))
     if streams_chan_map:
@@ -571,7 +616,9 @@ def radio_app():
     else:
         RADIO_MODE = RM_TVH
 
+    # get the TVH channel map into the same format dict as the streams and favourites
     tvh_chan_map = get_tvh_chan_urls()
+
 
     if RADIO_MODE == RM_TVH:
         print('tvh radio mode')
@@ -664,7 +711,7 @@ def radio_app():
                     print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
                     stream_url = chan_map[chan_names[chan_num]]
                     threads = []
-                    threads.append(Thread(target=play_channel, args=(EVENT, stream_url, ) ))
+                    threads.append(Thread(target=play_channel, args=(stream_url, ) ))
                     threads[-1].start()
                 else:
                     print('Setting STOP_PLAYBACK true')
@@ -703,11 +750,19 @@ def radio_app():
                 print('Unknown key')
 
             KEY_STROKE = ''
+        else:
+            print('Error, key "%s"' % (KEY_STROKE,))
 
         print('Current channel = %s' % (chan_names[chan_num], ))
         EVENT.clear() # Resets the flag.
 
+    if httpd:
+        print('Waiting for web service to shut down')
+        httpd.shutdown()
+        time.sleep(1)
+
     for thread in threads:
+        print('Debug, joining thread to this')
         thread.join()
 
 
