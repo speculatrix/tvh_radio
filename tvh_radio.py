@@ -54,6 +54,8 @@ TS_PASS = 'ts_pass'
 TS_PAUTH = 'ts_pauth'
 TS_PLAY = 'ts_play'
 
+TS_WPORT = 'ts_wport'          # default web port, 0 to disable, 8080 suggested
+
 TITLE = 'title'
 DFLT = 'default'
 HELP = 'help'
@@ -106,7 +108,12 @@ SETTINGS_DEFAULTS = {
         HELP: 'Command to play media with arguments, try "/usr/bin/omxplayer.bin -o ' \
                'alsa" or "vlc -I dummy --novideo --play-and-exit"',
     },
-}
+    TS_WPORT: {
+        TITLE: 'Web Port',
+        DFLT: '8080',
+        HELP: 'Web port (use 8080) or zero to disable',
+    },
+ }
 
 
 # Radio Modes
@@ -158,6 +165,11 @@ def api_test_func():
     print('%s' % json.dumps(ts_json, sort_keys=True, \
                                 indent=4, separators=(',', ': ')) )
 
+
+##########################################################################################
+def channel_editor():
+
+    print('=== Channel Editor ===')
 
 ##########################################################################################
 def write_list_file(text_header, file_name, list_data):
@@ -402,7 +414,7 @@ def settings_editor(settings_file):
         print('%s [%s]: ' % (SETTINGS_DEFAULTS[setting][TITLE], setting_value, ), end='')
         sys.stdout.flush()
         new_value = sys.stdin.readline().rstrip()
-        if new_value in ('', '\n'):
+        if new_value not in ('', '\n'):
             MY_SETTINGS.set(SETTINGS_SECTION, setting, new_value)
         else:
             MY_SETTINGS.set(SETTINGS_SECTION, setting, setting_value)
