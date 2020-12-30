@@ -136,6 +136,7 @@ def print_help():
     print('''=== Help
 ? - help
 d - down a channel
+e - edit streams list
 h - help
 f - favourite or unfavourite a channel
 m - mode change
@@ -172,10 +173,12 @@ def api_test_func():
 
 
 ##########################################################################################
-def channel_editor():
-    ''' function to invoke external channel editor ??? '''
+def streams_editor():
+    ''' function to invoke external editor on streams list '''
 
-    print('=== Channel Editor ===')
+    print('=== Streams List Editor ===')
+    print('Please edit the file %s with your favourite editor' %
+          (os.path.join(os.environ['HOME'], SETTINGS_DIR, STREAMS_LIST), ))
 
 ##########################################################################################
 def write_list_file(text_header, file_name, list_data):
@@ -258,7 +261,7 @@ def read_list_file(file_name):
 
 ##########################################################################################
 def text_to_speech_file(input_text, output_file):
-    '''uses Google to turn supplied text into speech in the file'''
+    ''' uses Google to turn supplied text into speech in the file '''
 
     goo_url = '%s%s' % (GOOGLE_TTS, urllib.parse.quote(input_text), )
     opener = urllib.request.build_opener()
@@ -465,12 +468,13 @@ def play_file(audio_file_name):
 ##########################################################################################
 # play_channel
 def play_channel(stream_url):
-    ''' starts playing stream, until STOP_PLAYBACK seen then it kills the player '''
+    ''' starts playing stream in a sub process
+        if it sees STOP_PLAYBACK then it kills the player '''
 
     global DBG_LEVEL
     global MY_SETTINGS
-    global STOP_PLAYBACK
     global PLAYER_PID
+    global STOP_PLAYBACK
 
     url = stream_url
 
@@ -504,11 +508,12 @@ def play_channel(stream_url):
 ##########################################################################################
 # SIGINT/ctrl-c handler
 def sigint_handler(_signal_number, _frame):
-    '''called when signal 2 or CTRL-C hits process'''
+    ''' called when signal 2 or CTRL-C hits process, simply flags request to quit '''
 
     global DBG_LEVEL
-    global QUIT_FLAG
     global EVENT
+    global QUIT_FLAG
+
     print('\nCTRL-C QUIT')
     QUIT_FLAG = True
     EVENT.set()
@@ -516,11 +521,11 @@ def sigint_handler(_signal_number, _frame):
 
 ##########################################################################################
 def keyboard_listen_thread():
-    '''keyboard listening thread, sets raw input and uses sockets to
-       get single key strokes without waiting, triggering an event.'''
+    ''' keyboard listening thread, sets raw input and uses sockets to
+        get single key strokes without waiting, triggering an event. '''
 
-    global QUIT_FLAG
     global KEY_STROKE
+    global QUIT_FLAG
 
     # set term to raw, so doesn't wait for return
     old_settings = termios.tcgetattr(sys.stdin)
@@ -549,11 +554,15 @@ def save_favourites(list_data):
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     ''' minimal http request handler for remote control '''
 
-    global KEY_STROKE
     global EVENT
+    # this doesn't work, for some reason the KEY_STROKE global isn't the right one :-(
+    global KEY_STROKE
 
     def do_GET(self):   # pylint:disable=invalid-name
         ''' implement the http GET method '''
+
+        global KEY_STROKE
+
         self.send_response(200)
         self.end_headers()
         # look for the letter after the "GET /"
@@ -563,27 +572,32 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             EVENT.set()
         else:
             response_string = 'tvh_radio.py command unknown ' + KEY_STROKE + '\n'
+
+        #print('Debug, responding to GET with %s' % (response_string, ))
         self.wfile.write(bytearray(response_string, encoding ='ascii'))
 
 ##########################################################################################
 def start_web_listener(httpd):
     ''' a very primitive web interface for remote control '''
 
-    global QUIT_FLAG
     global KEY_STROKE
+    global QUIT_FLAG
+
+    print('Debug. starting httpd server')
     httpd.serve_forever()   # never returns
 
 ##########################################################################################
 def radio_app():
     '''this runs the radio appliance'''
 
-    global MY_SETTINGS
-    global RADIO_MODE
+    global DBG_LEVEL
     global EVENT
-    global QUIT_FLAG
     global KEY_STROKE
-    global STOP_PLAYBACK
+    global MY_SETTINGS
     global PLAYER_PID
+    global QUIT_FLAG
+    global RADIO_MODE
+    global STOP_PLAYBACK
 
     # trap ctrl-x/sigint so we can clean up
     signal.signal(signal.SIGINT, sigint_handler)
@@ -660,6 +674,10 @@ def radio_app():
                 if chan_num > 0:
                     chan_num = chan_num - 1
 
+            elif KEY_STROKE == 'e':
+                DBG_LEVEL and print('e')
+                streams_editor()
+
             elif KEY_STROKE == 'f':
                 DBG_LEVEL and print('favourite')
                 if chan_names[chan_num] in favourites_chan_map:
@@ -706,7 +724,7 @@ def radio_app():
 
 
             elif KEY_STROKE == 'p':
-                DBG_LEVEL or print('play')
+                DBG_LEVEL and print('play')
                 if PLAYER_PID == 0:
                     print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
                     stream_url = chan_map[chan_names[chan_num]]
@@ -770,16 +788,15 @@ def radio_app():
 def main():
     '''the main entry point'''
 
-    DBG_LEVEL = 0
-
-    global SETTINGS_DIR
-    global SETTINGS_FILE
-    global MY_SETTINGS
-    global RADIO_MODE
+    global DBG_LEVEL
     global EVENT
     global KEY_STROKE
-    global STOP_PLAYBACK
+    global MY_SETTINGS
     global PLAYER_PID
+    global RADIO_MODE
+    global SETTINGS_DIR
+    global SETTINGS_FILE
+    global STOP_PLAYBACK
 
     # settings_file is the fully qualified path to the settings file
     settings_dir = os.path.join(os.environ['HOME'], SETTINGS_DIR)
@@ -814,9 +831,9 @@ def main():
 if __name__ == "__main__":
     DBG_LEVEL = 0
     KEY_STROKE = ''
+    PLAYER_PID = 0
     QUIT_FLAG = False
     STOP_PLAYBACK = False
-    PLAYER_PID = 0
 
     EVENT = Event()
     MY_SETTINGS = configparser.ConfigParser()
