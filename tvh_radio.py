@@ -139,7 +139,7 @@ d - down a channel
 e - edit streams list
 h - help
 f - favourite or unfavourite a channel
-m - mode change
+m - mode change - TVH, stream or favourites
 p - play/stop channel
 q - quit
 s - speak channel name
