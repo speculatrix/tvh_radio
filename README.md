@@ -14,6 +14,8 @@ This project allows any linux device (actually, anything that can run
 Python3), such as a Raspberry Pi, to be used as a radio-like appliance,
 streaming from a TV Headend server or from a list of URLs (TBD).
 
+The program works fairly well now, and I am adding a very basic web interface
+for remote control - see the roadmap at the end of this page.
 
 I wrote this partly to stretch my python skills, but mostly because I wanted
 to be able to turn a Raspberry Pi0/W into the basis of a streaming receiver.
@@ -126,10 +128,14 @@ https://thepihut.com/collections/raspberry-pi-hats/products/display-o-tron-hat
 
 I also intend to make it possible to use a small LCD display to give status.
 
+
 ## non-TVH streaming services
 
 
 ## web API for remote control
+
+This is being actively developed. It will be very light weight so that the
+most basic old smartphone can be used as a simple remote control.
 
 
 ## favourites list
