@@ -127,13 +127,8 @@ RM_STR = 'STR'      # streams list
 RM_FAV = 'FAV'      # favourites list
 RADIO_MODE = RM_FAV # default
 
-
-##########################################################################################
-# help
-def print_help():
-    '''prints help'''
-
-    print('''=== Help
+# Chunks of text
+HELP_TEXT = '''=== Help
 ? - help
 d - down a channel
 e - edit streams list
@@ -145,7 +140,34 @@ q - quit
 s - speak channel name
 t - speak time
 u - up a channel
-''')
+'''
+
+WEB_HOME = '''<html>
+<head><title>tvh_radio.py</title></head>
+<body>
+<h1>tvh_radio.py</h1>
+<pre>%s</pre>
+<a href='/'>update page</a>
+<br />
+<a href='/m'>change mode</a>
+<br />
+<a href='/p'>play/pause</a>
+<br />
+<a href='/d'>down a channel</a>
+<br />
+<a href='/u'>up a channel</a>
+<br />
+</body>
+</html>
+'''
+
+
+##########################################################################################
+# help
+def print_help():
+    ''' prints help '''
+
+    print(HELP_TEXT)
 
 ##########################################################################################
 def api_test_func():
@@ -555,26 +577,43 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     ''' minimal http request handler for remote control '''
 
     global EVENT
-    # this doesn't work, for some reason the KEY_STROKE global isn't the right one :-(
     global KEY_STROKE
+    global PLAYER_PID
+    global RADIO_MODE
+    global STOP_PLAYBACK
 
     def do_GET(self):   # pylint:disable=invalid-name
         ''' implement the http GET method '''
 
         global KEY_STROKE
+        global EVENT
+        global PLAYER_PID
+        global RADIO_MODE
+        global STOP_PLAYBACK
 
         self.send_response(200)
         self.end_headers()
         # look for the letter after the "GET /"
-        KEY_STROKE = str(self.requestline[5])
-        if KEY_STROKE in valid_web_commands:
-            response_string = 'tvh_radio.py command received ' + KEY_STROKE + '\n'
+        uri = self.requestline[5]
+        if uri in valid_web_commands:
+            KEY_STROKE = uri
             EVENT.set()
-        else:
-            response_string = 'tvh_radio.py command unknown ' + KEY_STROKE + '\n'
+            time.sleep(0.5)
 
-        #print('Debug, responding to GET with %s' % (response_string, ))
-        self.wfile.write(bytearray(response_string, encoding ='ascii'))
+        if PLAYER_PID != 0:
+            status_playing = 'play in progress\n'
+        else:
+            status_playing = 'nothing playing\n'
+
+        if STOP_PLAYBACK:
+            status_stopping = 'stopping playback\n'
+        else:
+            status_stopping = 'playback can continue\n'
+
+        status_complete = 'Status:\nradio mode = %s\n%s%s' % (RADIO_MODE, status_playing, status_stopping, )
+
+        #response_string = WEB_HOME % status_complete
+        self.wfile.write(bytearray(WEB_HOME % status_complete, encoding ='ascii'))
 
 ##########################################################################################
 def start_web_listener(httpd):
