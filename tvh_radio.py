@@ -157,6 +157,11 @@ WEB_HOME = '''<html>
 <br />
 <a href='/u'>up a channel</a>
 <br />
+
+<hr>
+More info here: <a href="https://github.com/speculatrix/tvh_radio" target="_new">github</a>
+<br />
+If you want to chromecast from TVH, try this: <a href="https://github.com/speculatrix/tvh_epg" target="_new">tvh_epg</a>
 </body>
 </html>
 '''
