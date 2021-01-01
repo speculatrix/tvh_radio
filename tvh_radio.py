@@ -732,7 +732,7 @@ def radio_app():
 
 
 
-    print('Current channel = %s' % (chan_names[chan_num], ))
+    print('Playing next: %s' % (chan_names[chan_num], ))
     # SIGINT and keyboard strokes and (one day) GPIO events all get funnelled here
     while not QUIT_FLAG:
         EVENT.wait() # Blocks until the flag becomes true.
@@ -862,7 +862,7 @@ def radio_app():
         else:
             print('Error, key "%s"' % (KEY_STROKE,))
 
-        print('Current channel = %s' % (chan_names[chan_num], ))
+        print('Playing next: %s' % (chan_names[chan_num], ))
         CHANNEL_NEXT = chan_names[chan_num]
         EVENT.clear() # Resets the flag.
 
