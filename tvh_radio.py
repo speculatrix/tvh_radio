@@ -64,8 +64,6 @@ TITLE = 'title'
 DFLT = 'default'
 HELP = 'help'
 
-valid_web_commands = ('d', 'm', 'p', 's', 't', 'u', )
-
 # the settings file is stored in a directory under $HOME
 SETTINGS_DIR = '.tvh_radio'
 SETTINGS_FILE = 'settings.ini'
@@ -127,6 +125,15 @@ RM_STR = 'STR'      # streams list
 RM_FAV = 'FAV'      # favourites list
 RADIO_MODE = RM_FAV # default
 
+RM_TEXT = {
+        RM_TVH: 'TVHeadend',
+        RM_STR: 'Stream List',
+        RM_FAV: 'Favourites List',
+}
+
+
+valid_web_commands = ('d', 'f', 'm', 'p', 's', 't', 'u', )
+
 # Chunks of text
 HELP_TEXT = '''=== Help
 ? - help
@@ -143,11 +150,16 @@ u - up a channel
 '''
 
 WEB_HOME = '''<html>
-<head><title>tvh_radio.py</title></head>
+<head>
+    <title>tvh_radio.py</title>
+    <link rel="shortcut icon" type="image/png" href="%s"/>
+    </head>
 <body>
 <h1>tvh_radio.py</h1>
-<pre>%s</pre>
+%s
 <a href='/'>update page</a>
+<br />
+<a href='/f'>favourite toggle</a>
 <br />
 <a href='/m'>change mode</a>
 <br />
@@ -206,6 +218,14 @@ def streams_editor():
     print('=== Streams List Editor ===')
     print('Please edit the file %s with your favourite editor' %
           (os.path.join(os.environ['HOME'], SETTINGS_DIR, STREAMS_LIST), ))
+
+##########################################################################################
+def print_channel_list(prefix, chan_list):
+    ''' prints a channel list '''
+
+    for (chan_name, chan_url) in chan_list.items():
+        print("%s%s : %s" % (prefix, chan_name, chan_url, ))
+
 
 ##########################################################################################
 def write_list_file(text_header, file_name, list_data):
@@ -501,6 +521,7 @@ def play_channel(stream_url):
     global DBG_LEVEL
     global MY_SETTINGS
     global PLAYER_PID
+    global CHANNEL_PLAYING
     global STOP_PLAYBACK
 
     url = stream_url
@@ -531,6 +552,7 @@ def play_channel(stream_url):
             player_proc.kill()
 
     print('play_channel exiting')
+    CHANNEL_PLAYING = ''
 
 ##########################################################################################
 # SIGINT/ctrl-c handler
@@ -581,6 +603,8 @@ def save_favourites(list_data):
 class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     ''' minimal http request handler for remote control '''
 
+    global CHANNEL_NEXT
+    global CHANNEL_PLAYING
     global EVENT
     global KEY_STROKE
     global PLAYER_PID
@@ -590,6 +614,8 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
     def do_GET(self):   # pylint:disable=invalid-name
         ''' implement the http GET method '''
 
+        global CHANNEL_NEXT
+        global CHANNEL_PLAYING
         global KEY_STROKE
         global EVENT
         global PLAYER_PID
@@ -606,19 +632,22 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             time.sleep(0.5)
 
         if PLAYER_PID != 0:
-            status_playing = 'play in progress\n'
+            if STOP_PLAYBACK:
+                status_playing = 'playing: %s but stopping soon\n' % CHANNEL_PLAYING
+            else:
+                status_playing = 'playing: %s\n' % CHANNEL_PLAYING
         else:
-            status_playing = 'nothing playing\n'
+            status_playing = ''
 
-        if STOP_PLAYBACK:
-            status_stopping = 'stopping playback\n'
+        if CHANNEL_NEXT != '':
+            channel_next = 'playing next: %s\n' % CHANNEL_NEXT
         else:
-            status_stopping = 'playback can continue\n'
+            channel_next = ''
 
-        status_complete = 'Status:\nradio mode = %s\n%s%s' % (RADIO_MODE, status_playing, status_stopping, )
+        status_complete = '<b>Status</b><pre>radio mode: %s\n%s%s\n</pre>' % (RM_TEXT[RADIO_MODE], status_playing, channel_next, )
 
-        #response_string = WEB_HOME % status_complete
-        self.wfile.write(bytearray(WEB_HOME % status_complete, encoding ='ascii'))
+        favicon_url = '%s/favicon.ico' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], )
+        self.wfile.write(bytearray(WEB_HOME % (favicon_url, status_complete, ), encoding ='ascii'))
 
 ##########################################################################################
 def start_web_listener(httpd):
@@ -634,6 +663,8 @@ def start_web_listener(httpd):
 def radio_app():
     '''this runs the radio appliance'''
 
+    global CHANNEL_NEXT
+    global CHANNEL_PLAYING
     global DBG_LEVEL
     global EVENT
     global KEY_STROKE
@@ -642,22 +673,6 @@ def radio_app():
     global QUIT_FLAG
     global RADIO_MODE
     global STOP_PLAYBACK
-
-    # trap ctrl-x/sigint so we can clean up
-    signal.signal(signal.SIGINT, sigint_handler)
-
-    # start a thread to listen to the keyboard
-    threads = []
-    threads.append(Thread(target=keyboard_listen_thread))
-    threads[-1].start()
-
-    # do we need to start a thread to act as the web server?
-    ts_wport = MY_SETTINGS.get(SETTINGS_SECTION, TS_WPORT)
-    if ts_wport and ts_wport != '' and ts_wport.isnumeric():
-        httpd = HTTPServer(('localhost', int(ts_wport)), SimpleHTTPRequestHandler)
-        threads.append(Thread(target=start_web_listener, args=(httpd, )))
-        threads[-1].start()
-
 
     # read the streams file into a boringly simple dict
     streams_chan_map = read_list_file(os.path.join(os.environ['HOME'],
@@ -677,7 +692,6 @@ def radio_app():
     # get the TVH channel map into the same format dict as the streams and favourites
     tvh_chan_map = get_tvh_chan_urls()
 
-
     if RADIO_MODE == RM_TVH:
         print('tvh radio mode')
         chan_map = tvh_chan_map
@@ -696,6 +710,27 @@ def radio_app():
     max_chan = len(chan_map)            # max channel number
 
     chan_num = 0                        # start at first channel
+    CHANNEL_NEXT = chan_names[chan_num]
+
+    ####
+    # now we have the data, lets do the radio thing!
+
+    # trap ctrl-x/sigint so we can clean up
+    signal.signal(signal.SIGINT, sigint_handler)
+
+    # start a thread to listen to the keyboard
+    threads = []
+    threads.append(Thread(target=keyboard_listen_thread))
+    threads[-1].start()
+
+    # do we need to start a thread to act as the web server?
+    ts_wport = MY_SETTINGS.get(SETTINGS_SECTION, TS_WPORT)
+    if ts_wport and ts_wport != '' and ts_wport.isnumeric():
+        httpd = HTTPServer(('localhost', int(ts_wport)), SimpleHTTPRequestHandler)
+        threads.append(Thread(target=start_web_listener, args=(httpd, )))
+        threads[-1].start()
+
+
 
     print('Current channel = %s' % (chan_names[chan_num], ))
     # SIGINT and keyboard strokes and (one day) GPIO events all get funnelled here
@@ -737,6 +772,14 @@ def radio_app():
 
                 save_favourites(favourites_chan_map)
 
+            elif KEY_STROKE == 'F':
+                DBG_LEVEL and print('F')
+                if favourites_chan_map:
+                    print('Favourites:')
+                    print_channel_list('\t', favourites_chan_map)
+                else:
+                    print('Warning, no favourites set')
+
 
             elif KEY_STROKE == 'm':
                 DBG_LEVEL and print('mode')
@@ -744,6 +787,7 @@ def radio_app():
                 while PLAYER_PID != 0:
                     print('Waiting to stop playback before changing mode')
                     STOP_PLAYBACK = True
+                    CHANNEL_PLAYING = ''
                     time.sleep(1)
 
                 # cycle between modes and choose the channel map for new mode
@@ -770,6 +814,7 @@ def radio_app():
             elif KEY_STROKE == 'p':
                 DBG_LEVEL and print('play')
                 if PLAYER_PID == 0:
+                    CHANNEL_PLAYING = chan_names[chan_num]
                     print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
                     stream_url = chan_map[chan_names[chan_num]]
                     threads = []
@@ -778,6 +823,7 @@ def radio_app():
                 else:
                     print('Setting STOP_PLAYBACK true')
                     STOP_PLAYBACK = True
+                    CHANNEL_PLAYING = ''
 
             elif KEY_STROKE == 'q':
                 print('Quit!')
@@ -785,6 +831,7 @@ def radio_app():
                     print('Waiting to stop playback')
                     STOP_PLAYBACK = True
                     time.sleep(1)
+                    CHANNEL_PLAYING = ''
 
                 QUIT_FLAG = 1
 
@@ -816,6 +863,7 @@ def radio_app():
             print('Error, key "%s"' % (KEY_STROKE,))
 
         print('Current channel = %s' % (chan_names[chan_num], ))
+        CHANNEL_NEXT = chan_names[chan_num]
         EVENT.clear() # Resets the flag.
 
     if httpd:
@@ -832,6 +880,8 @@ def radio_app():
 def main():
     '''the main entry point'''
 
+    global CHANNEL_NEXT
+    global CHANNEL_PLAYING
     global DBG_LEVEL
     global EVENT
     global KEY_STROKE
@@ -876,6 +926,8 @@ if __name__ == "__main__":
     DBG_LEVEL = 0
     KEY_STROKE = ''
     PLAYER_PID = 0
+    CHANNEL_NEXT = ''
+    CHANNEL_PLAYING = ''
     QUIT_FLAG = False
     STOP_PLAYBACK = False
 
