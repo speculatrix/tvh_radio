@@ -765,10 +765,11 @@ def radio_app():
                 else:
                     print('Adding channel %s to favourites' % (chan_names[chan_num], ))
                     favourites_chan_map[chan_names[chan_num]] = chan_map[chan_names[chan_num]]
+                    favourites_chan_map = dict(sorted(favourites_chan_map.items()))
                 # re-count the channels
                 if RADIO_MODE == RM_FAV:
                     max_chan = len(chan_map)
-                    favourites_chan_map = dict(sorted(favourites_chan_map.items()))
+                    chan_names = list(chan_map.keys())  # get an indexable array
 
                 save_favourites(favourites_chan_map)
 
