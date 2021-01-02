@@ -167,6 +167,10 @@ WEB_HOME = '''<html>
 <br />
 <a href='/d'>down a channel</a>
 <br />
+<a href='/s'>speak the channel name</a>
+<br />
+<a href='/t'>time and date</a>
+<br />
 <a href='/u'>up a channel</a>
 <br />
 
