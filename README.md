@@ -108,6 +108,7 @@ key functions
 * ? - help
 * d - down a channel
 * f - favourite or unfavourite a channel
+* F - favourites list
 * h - help
 * m - mode change, from TVH to stream to favourites
 * p - play channel/stop channel
