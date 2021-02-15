@@ -52,17 +52,21 @@ TS_URL_CHN = 'api/channel/grid'
 TS_URL_STR = 'stream/channel'
 TS_URL_PEG = 'api/passwd/entry/grid'
 
+# name of Tvheadend Server parameters
 TS_URL = 'ts_url'
 TS_USER = 'ts_user'
 TS_PASS = 'ts_pass'
 TS_PAUTH = 'ts_pauth'
-TS_PLAY = 'ts_play'
 
-TS_WPORT = 'ts_wport'          # default web port, 0 to disable, 8080 suggested
+PLAYER_COMMAND = 'player_command'
+
+WEB_PORT = 'web_port'              # default web port, 0 to disable, 8080 suggested
+WEB_PUBLIC = 'web_public'          # listen on all interfaces or localhost
 
 TITLE = 'title'
 DFLT = 'default'
 HELP = 'help'
+
 
 # the settings file is stored in a directory under $HOME
 SETTINGS_DIR = '.tvh_radio'
@@ -104,17 +108,22 @@ SETTINGS_DEFAULTS = {
               'editing the user to set persistent auth on, then saving, then re-edit ' \
               'and scroll down to see the persistent auth value',
     },
-    TS_PLAY: {
+    PLAYER_COMMAND: {
         TITLE: 'Player',
         DFLT: '/usr/bin/omxplayer.bin -o alsa',
         #DFLT: 'vlc -I dummy --novideo',
         HELP: 'Command to play media with arguments, try "/usr/bin/omxplayer.bin -o ' \
                'alsa" or "vlc -I dummy --novideo --play-and-exit"',
     },
-    TS_WPORT: {
+    WEB_PORT: {
         TITLE: 'Web Port',
         DFLT: '8080',
         HELP: 'Web port (use 8080) or zero to disable',
+    },
+    WEB_PUBLIC: {
+        TITLE:  'Web Public',
+        DFLT:   '0',
+        HELP:   'Set to 1 otherwise is localhost only',
     },
  }
 
@@ -471,6 +480,8 @@ def settings_editor(settings_file):
             else:
                 setting_value = ''
 
+        # one day the settings editor will be more clever
+        #print('type of %s is %s' % (setting, type(setting)))
         print('Hint: %s' % (SETTINGS_DEFAULTS[setting][HELP], ))
         print('%s [%s]: ' % (SETTINGS_DEFAULTS[setting][TITLE], setting_value, ), end='')
         sys.stdout.flush()
@@ -508,7 +519,7 @@ def play_file(audio_file_name):
     global DBG_LEVEL
     global MY_SETTINGS
 
-    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, TS_PLAY)
+    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, PLAYER_COMMAND)
     play_cmd_array = play_cmd.split()
     play_cmd_array.append(audio_file_name)
     #print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
@@ -530,7 +541,7 @@ def play_channel(stream_url):
 
     url = stream_url
 
-    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, TS_PLAY)
+    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, PLAYER_COMMAND)
     play_cmd_array = play_cmd.split()
     play_cmd_array.append(url)
     print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
@@ -727,13 +738,17 @@ def radio_app():
     threads.append(Thread(target=keyboard_listen_thread))
     threads[-1].start()
 
+
     # do we need to start a thread to act as the web server?
-    ts_wport = MY_SETTINGS.get(SETTINGS_SECTION, TS_WPORT)
-    if ts_wport and ts_wport != '' and ts_wport.isnumeric():
-        httpd = HTTPServer(('localhost', int(ts_wport)), SimpleHTTPRequestHandler)
+    wport = MY_SETTINGS.get(SETTINGS_SECTION, WEB_PORT)
+    if MY_SETTINGS.get(SETTINGS_SECTION, WEB_PUBLIC) == '1':
+        bind_host = ''
+    else:
+        bind_host = 'localhost'
+    if wport and wport != '' and wport.isnumeric():
+        httpd = HTTPServer((bind_host, int(wport)), SimpleHTTPRequestHandler)
         threads.append(Thread(target=start_web_listener, args=(httpd, )))
         threads[-1].start()
-
 
 
     print('Playing next: %s' % (chan_names[chan_num], ))
