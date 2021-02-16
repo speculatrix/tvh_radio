@@ -12,6 +12,7 @@ import datetime
 #import hashlib
 import json
 import os
+import re
 #import stat
 import signal
 import sys
@@ -639,30 +640,43 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
 
         self.send_response(200)
         self.end_headers()
-        # look for the letter after the "GET /"
-        uri = self.requestline[5]
-        if uri in valid_web_commands:
-            KEY_STROKE = uri
-            EVENT.set()
-            time.sleep(0.5)
 
-        if PLAYER_PID != 0:
-            if STOP_PLAYBACK:
-                status_playing = 'playing: %s but stopping soon\n' % CHANNEL_PLAYING
+        uri_get_regex = re.compile(r'GET (.*) HTTP.*')
+        re_matches = uri_get_regex.match(self.requestline)
+        if re_matches:
+            uri = re_matches.group(1)
+        else:
+            uri = '/'	# fallback, but it should never get here
+
+        if '.png' in uri:
+            # send an image
+            print('Debug, uri "%s" contained .png' % (uri, ))
+            self.path(uri)
+            return http.server.SimpleHTTPRequestHandler.do_GET(self)
+        else:
+            # miss off the leading /
+            if uri[1:] in valid_web_commands:
+                KEY_STROKE = uri[1:]
+                EVENT.set()
+                time.sleep(0.5)
+
+            if PLAYER_PID != 0:
+                if STOP_PLAYBACK:
+                    status_playing = 'playing: %s but stopping soon\n' % CHANNEL_PLAYING
+                else:
+                    status_playing = 'playing: %s\n' % CHANNEL_PLAYING
             else:
-                status_playing = 'playing: %s\n' % CHANNEL_PLAYING
-        else:
-            status_playing = ''
+                status_playing = ''
 
-        if CHANNEL_NEXT != '':
-            channel_next = 'playing next: %s\n' % CHANNEL_NEXT
-        else:
-            channel_next = ''
+            if CHANNEL_NEXT != '':
+                channel_next = 'playing next: %s\n' % CHANNEL_NEXT
+            else:
+                channel_next = ''
 
-        status_complete = '<b>Status</b><pre>radio mode: %s\n%s%s\n</pre>' % (RM_TEXT[RADIO_MODE], status_playing, channel_next, )
+            status_complete = '<b>Status</b><pre>radio mode: %s\n%s%s\n</pre>' % (RM_TEXT[RADIO_MODE], status_playing, channel_next, )
 
-        favicon_url = '%s/favicon.ico' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], )
-        self.wfile.write(bytearray(WEB_HOME % (favicon_url, status_complete, ), encoding ='ascii'))
+            favicon_url = '%s/favicon.ico' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], )
+            self.wfile.write(bytearray(WEB_HOME % (favicon_url, status_complete, ), encoding ='ascii'))
 
 ##########################################################################################
 def start_web_listener(httpd):
