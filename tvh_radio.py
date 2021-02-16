@@ -15,6 +15,7 @@ import os
 import re
 #import stat
 import signal
+import socketserver
 import sys
 import subprocess
 import time
@@ -25,7 +26,7 @@ import tty
 import termios
 
 import urllib
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
 import requests
 
 # requires making code less readable:
@@ -616,7 +617,7 @@ def save_favourites(list_data):
                     list_data)
 
 ##########################################################################################
-class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
+class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
     ''' minimal http request handler for remote control '''
 
     global CHANNEL_NEXT
@@ -638,8 +639,6 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
         global RADIO_MODE
         global STOP_PLAYBACK
 
-        self.send_response(200)
-        self.end_headers()
 
         uri_get_regex = re.compile(r'GET (.*) HTTP.*')
         re_matches = uri_get_regex.match(self.requestline)
@@ -649,11 +648,13 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             uri = '/'	# fallback, but it should never get here
 
         if '.png' in uri:
-            # send an image
-            print('Debug, uri "%s" contained .png' % (uri, ))
-            self.path(uri)
-            return http.server.SimpleHTTPRequestHandler.do_GET(self)
+            print('Debug, attempting to send image')
+            return SimpleHTTPRequestHandler.do_GET(self)
         else:
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+            print('Debug, executing command and sending status')
             # miss off the leading /
             if uri[1:] in valid_web_commands:
                 KEY_STROKE = uri[1:]
@@ -679,6 +680,7 @@ class SimpleHTTPRequestHandler(BaseHTTPRequestHandler):
             self.wfile.write(bytearray(WEB_HOME % (favicon_url, status_complete, ), encoding ='ascii'))
 
 ##########################################################################################
+#def start_web_listener(wport, bind_host):
 def start_web_listener(httpd):
     ''' a very primitive web interface for remote control '''
 
@@ -687,6 +689,7 @@ def start_web_listener(httpd):
 
     print('Debug. starting httpd server')
     httpd.serve_forever()   # never returns
+
 
 ##########################################################################################
 def radio_app():
@@ -754,13 +757,13 @@ def radio_app():
 
 
     # do we need to start a thread to act as the web server?
-    wport = MY_SETTINGS.get(SETTINGS_SECTION, WEB_PORT)
     if MY_SETTINGS.get(SETTINGS_SECTION, WEB_PUBLIC) == '1':
         bind_host = ''
     else:
         bind_host = 'localhost'
+    wport = MY_SETTINGS.get(SETTINGS_SECTION, WEB_PORT)
     if wport and wport != '' and wport.isnumeric():
-        httpd = HTTPServer((bind_host, int(wport)), SimpleHTTPRequestHandler)
+        httpd = HTTPServer((bind_host, int(wport)), MyHTTPRequestHandler)
         threads.append(Thread(target=start_web_listener, args=(httpd, )))
         threads[-1].start()
 
