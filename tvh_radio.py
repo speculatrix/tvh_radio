@@ -168,22 +168,43 @@ WEB_HOME = '''<html>
 <body>
 <h1>tvh_radio.py</h1>
 %s
-<a href='/'>update page</a>
-<br />
-<a href='/f'>favourite toggle</a>
-<br />
-<a href='/m'>change mode</a>
-<br />
-<a href='/p'>play/pause</a>
-<br />
-<a href='/d'>down a channel</a>
-<br />
-<a href='/s'>speak the channel name</a>
-<br />
-<a href='/t'>time and date</a>
-<br />
-<a href='/u'>up a channel</a>
-<br />
+
+<table border="1">
+<tr>
+    <td colspan="2"><a href="/">update page</a></td>
+</tr>
+<tr>
+    <td><a href='/u'><img src="/up.png" /></a></td>
+    <td>up a channel</td>
+</tr>
+
+<tr>
+    <td><a href='/d'><img src="/down.png" /></a></td>
+    <td>down a channel</td>
+</tr>
+
+<tr>
+    <td><a href='/p'><img src="/ball.red.png" /></a></td>
+    <td>play/pause</td>
+</tr>
+
+<tr>
+    <td><a href='/f'><img src="/image1.png" /></a></td>
+    <td>favourite toggle</td>
+</tr>
+<tr>
+    <td><a href='/m'><img src="/forward.png" /></a></td>
+    <td>change mode</td>
+</tr>
+<tr>
+    <td><a href='/s'><img src="/sound1.png" /></a></td>
+    <td>speak the channel name</td>
+</tr>
+<tr>
+    <td><a href='/t'><img src="/world2.png" /></a></td>
+    <td>time and date</td>
+</tr>
+</table>
 
 <hr>
 More info here: <a href="https://github.com/speculatrix/tvh_radio" target="_new">github</a>
@@ -335,17 +356,17 @@ def text_to_speech_file(input_text, output_file):
 
 
 ##########################################################################################
-def chan_data_to_tts_file(chan_data):
+def chan_data_to_tts_file(chan_name):
     '''given the channel data, returns the name of a sound file which is the
        channel name; calls text_to_speech_file to generate it if required'''
 
     global DBG_LEVEL
     global MY_SETTINGS
 
-    tts_file_name = '%s.mp3' % (os.path.join(os.environ['HOME'], SETTINGS_DIR, chan_data['uuid']), )
+    tts_file_name = '%s.mp3' % (os.path.join(os.environ['HOME'], SETTINGS_DIR, chan_name), )
 
     if not os.path.isfile(tts_file_name):
-        text_to_speech_file(chan_data['name'], tts_file_name)
+        text_to_speech_file(chan_name, tts_file_name)
 
     return tts_file_name
 
@@ -873,7 +894,7 @@ def radio_app():
                 QUIT_FLAG = 1
 
             elif KEY_STROKE == 's':
-                tts_file = chan_data_to_tts_file(chan_map[chan_names[chan_num]])
+                tts_file = chan_data_to_tts_file(chan_names[chan_num])
                 play_file(tts_file)
 
             elif KEY_STROKE == 't':
