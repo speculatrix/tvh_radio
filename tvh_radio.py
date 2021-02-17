@@ -167,9 +167,11 @@ WEB_HOME = '''<html>
     </head>
 <body>
 <h1>tvh_radio.py</h1>
-%s
 
 <table border="1">
+<tr>
+    <td colspan="2">%s</td>
+</tr>
 <tr>
     <td colspan="2"><a href="/">update page</a></td>
 </tr>
