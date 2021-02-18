@@ -168,13 +168,11 @@ WEB_HOME = '''<html>
 <body>
 <h1>tvh_radio.py</h1>
 
-<table border="1">
+<table border="0">
 <tr>
-    <td colspan="2">%s</td>
+    <td colspan="2" align="center"><a href="/">update page</a></td>
 </tr>
-<tr>
-    <td colspan="2"><a href="/">update page</a></td>
-</tr>
+%s
 <tr>
     <td><a href='/u'><img src="/up.png" /></a></td>
     <td>up a channel</td>
@@ -686,18 +684,19 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
 
             if PLAYER_PID != 0:
                 if STOP_PLAYBACK:
-                    status_playing = 'playing: %s but stopping soon\n' % CHANNEL_PLAYING
+                    status_playing = '<tr><td>playing</td><td>%s but stopping soon</td></tr>\n' % CHANNEL_PLAYING
                 else:
-                    status_playing = 'playing: %s\n' % CHANNEL_PLAYING
+                    status_playing = '<tr><td>playing</td><td>%s</td></tr>\n' % CHANNEL_PLAYING
             else:
                 status_playing = ''
 
             if CHANNEL_NEXT != '':
-                channel_next = 'playing next: %s\n' % CHANNEL_NEXT
+                channel_next = '<tr><td>playing next</td><td>%s</td></tr>\n' % CHANNEL_NEXT
             else:
                 channel_next = ''
 
-            status_complete = '<b>Status</b><pre>radio mode: %s\n%s%s\n</pre>' % (RM_TEXT[RADIO_MODE], status_playing, channel_next, )
+            radio_mode = '<tr><td>radio mode</td><td>%s</td></tr>' % (RM_TEXT[RADIO_MODE], )
+            status_complete = '%s%s%s' % (radio_mode, status_playing, channel_next, )
 
             favicon_url = '%s/favicon.ico' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], )
             self.wfile.write(bytearray(WEB_HOME % (favicon_url, status_complete, ), encoding ='ascii'))
