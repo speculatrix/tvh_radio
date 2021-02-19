@@ -7,26 +7,22 @@ This is a multi-mode radio app for a Pi, for streaming from the internet or from
 
 import argparse
 import configparser
-#import copy
 import datetime
-#import hashlib
 import json
 import os
 import re
 #import stat
 import signal
-import socketserver
 import sys
 import subprocess
 import time
 from threading import Event, Thread
 import select
 import tty
-#import collections
 import termios
 
 import urllib
-from http.server import HTTPServer, BaseHTTPRequestHandler, SimpleHTTPRequestHandler
+from http.server import HTTPServer, SimpleHTTPRequestHandler
 import requests
 
 # requires making code less readable:
@@ -36,6 +32,7 @@ import requests
 # Xpylint:disable=too-many-nested-blocks
 # Xpylint:disable=too-many-statements
 # pylint:disable=global-statement
+# pylint:disable=multiple-statements
 
 # broken in pylint3:
 # pylint:disable=global-variable-not-assigned
@@ -127,14 +124,13 @@ SETTINGS_DEFAULTS = {
         DFLT:   '0',
         HELP:   'Set to 1 otherwise is localhost only',
     },
- }
+}
 
 
 # Radio Modes
 RM_TVH = 'TVH'      # tv headend channels
 RM_STR = 'STR'      # streams list
 RM_FAV = 'FAV'      # favourites list
-RADIO_MODE = RM_FAV # default
 
 RM_TEXT = {
         RM_TVH: 'TVHeadend',
@@ -143,8 +139,6 @@ RM_TEXT = {
 }
 
 
-valid_web_commands = ('d', 'f', 'm', 'p', 's', 't', 'u', )
-
 # Chunks of text
 HELP_TEXT = '''=== Help
 ? - help
@@ -152,13 +146,17 @@ d - down a channel
 e - edit streams list
 h - help
 f - favourite or unfavourite a channel
+F - favourites list
 m - mode change - TVH, stream or favourites
 p - play/stop channel
 q - quit
-s - speak channel name
+s - speak current channel name
+s - speak next channel name
 t - speak time
 u - up a channel
 '''
+
+VALID_WEB_COMMANDS = ('d', 'f', 'F', 'm', 'p', 's', 'S', 't', 'u', )
 
 WEB_HOME = '''<html>
 <head>
@@ -198,7 +196,11 @@ WEB_HOME = '''<html>
 </tr>
 <tr>
     <td><a href='/s'><img src="/sound1.png" /></a></td>
-    <td>speak the channel name</td>
+    <td>speak the current channel name</td>
+</tr>
+<tr>
+    <td><a href='/S'><img src="/sound1.png" /></a></td>
+    <td>speak the future channel name</td>
 </tr>
 <tr>
     <td><a href='/t'><img src="/world2.png" /></a></td>
@@ -214,6 +216,23 @@ If you want to chromecast from TVH, try this: <a href="https://github.com/specul
 </html>
 '''
 
+####
+# the nasty hack of having globals for threads to share data
+GLOBALS = {}
+# keys for the globals, hopefully to prevent typos, python will optimise
+# these as reference by hash so it's not expensive
+G_CHAN_NAME_FUTURE = 'channel name future'
+G_CHAN_NUM_FUTURE = 'channel number future'
+G_CHAN_NAME_PLAYING = 'channel name playing'
+G_DBG_LEVEL     = 'debug_level'
+G_EVENT         = 'event handler'
+G_KEY_STROKE    = 'key_stroke'
+G_MY_SETTINGS   = 'my settings'
+G_PLAYER_PID    = 'player_pid'
+G_QUIT_FLAG     = 'quit_flag'
+G_RADIO_MODE    = 'radio_mode'
+G_STOP_PLAYBACK = 'stop playback'
+
 
 ##########################################################################################
 # help
@@ -226,11 +245,11 @@ def print_help():
 def api_test_func():
     ''' secret function for testing the TVH API in various ways '''
 
-    global DBG_LEVEL
+    global GLOBALS
 
-    ts_url = MY_SETTINGS[SETTINGS_SECTION][TS_URL]
-    ts_user = MY_SETTINGS[SETTINGS_SECTION][TS_USER]
-    ts_pass = MY_SETTINGS[SETTINGS_SECTION][TS_PASS]
+    ts_url = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL]
+    ts_user = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_USER]
+    ts_pass = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PASS]
     ts_query = '%s/%s' % (
         ts_url,
         TS_URL_PEG,
@@ -242,7 +261,7 @@ def api_test_func():
         return
 
     ts_json = ts_response.json()
-    #if DBG_LEVEL > 0:
+    #if GLOBALS[G_DBG_LEVEL] > 0:
     print('%s' % json.dumps(ts_json, sort_keys=True, \
                                 indent=4, separators=(',', ': ')) )
 
@@ -348,7 +367,7 @@ def text_to_speech_file(input_text, output_file):
 
     goo_url = '%s%s' % (GOOGLE_TTS, urllib.parse.quote(input_text), )
     opener = urllib.request.build_opener()
-    opener.addheaders =[('User-agent', G_TTS_UA), ]
+    opener.addheaders = [('User-agent', G_TTS_UA), ]
 
     write_handle = open(output_file, 'wb')
     with opener.open(goo_url) as goo_handle:
@@ -357,11 +376,10 @@ def text_to_speech_file(input_text, output_file):
 
 ##########################################################################################
 def chan_data_to_tts_file(chan_name):
-    '''given the channel data, returns the name of a sound file which is the
-       channel name; calls text_to_speech_file to generate it if required'''
+    ''' given the channel data, returns the name of a sound file which is the
+        channel name; calls text_to_speech_file to generate it if required '''
 
-    global DBG_LEVEL
-    global MY_SETTINGS
+    global GLOBALS
 
     tts_file_name = '%s.mp3' % (os.path.join(os.environ['HOME'], SETTINGS_DIR, chan_name), )
 
@@ -377,11 +395,11 @@ def get_tvh_chan_urls():
         returns dict: key = channel name, value = stream URL
     '''
 
-    global DBG_LEVEL
+    global GLOBALS
 
-    ts_url = MY_SETTINGS[SETTINGS_SECTION][TS_URL]
-    ts_user = MY_SETTINGS[SETTINGS_SECTION][TS_USER]
-    ts_pass = MY_SETTINGS[SETTINGS_SECTION][TS_PASS]
+    ts_url = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL]
+    ts_user = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_USER]
+    ts_pass = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PASS]
     ts_query = '%s/%s?limit=400' % (
         ts_url,
         TS_URL_CHN,
@@ -393,12 +411,12 @@ def get_tvh_chan_urls():
         return {}
 
     ts_json = ts_response.json()
-    if DBG_LEVEL > 1:
+    if GLOBALS[G_DBG_LEVEL] > 1:
         print('%s' % json.dumps(ts_json, sort_keys=True, \
                                 indent=4, separators=(',', ': ')) )
 
-    if TS_PAUTH in MY_SETTINGS[SETTINGS_SECTION]:
-        ts_pauth = '&AUTH=%s' % (MY_SETTINGS[SETTINGS_SECTION][TS_PAUTH], )
+    if TS_PAUTH in GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION]:
+        ts_pauth = '&AUTH=%s' % (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PAUTH], )
     else:
         ts_pauth = ''
 
@@ -420,13 +438,13 @@ def get_tvh_chan_urls():
                 chan_name = 'unknown ' + str(name_unknown)
                 name_unknown += 1
 
-            chan_map[chan_name] = '%s/%s/%s?profile=audio-only%s' % (
-                                   MY_SETTINGS[SETTINGS_SECTION][TS_URL],
-                                   TS_URL_STR,
-                                   entry['uuid'],
-                                   ts_pauth, )
+            chan_map[chan_name] = '%s/%s/%s?profile=audio-only%s' % \
+                                  ( GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL],
+                                    TS_URL_STR,
+                                    entry['uuid'],
+                                    ts_pauth, )
 
-    if DBG_LEVEL > 0:
+    if GLOBALS[G_DBG_LEVEL] > 0:
         print('%s' % json.dumps(chan_map, sort_keys=True, \
                                 indent=4, separators=(',', ': ')) )
 
@@ -439,8 +457,7 @@ def check_load_config_file(settings_dir, settings_file):
        returns 0 if OK, -1 if the rest of the page should be aborted,
        > 0 to trigger rendering of the settings page'''
 
-    global DBG_LEVEL
-    global MY_SETTINGS
+    global GLOBALS
 
     ########
     if os.path.isfile(settings_dir):
@@ -465,12 +482,12 @@ def check_load_config_file(settings_dir, settings_file):
         error_text = 'Error, "%s" file is empty\n' % (settings_file, )
         return(-1, error_text)
 
-    if not MY_SETTINGS.read(settings_file):
+    if not GLOBALS[G_MY_SETTINGS].read(settings_file):
         error_text = 'Error, failed parse config file "%s"' % (settings_file, )
         return(-1, error_text)
 
     #print('Debug, check_load_config_file TVH url is %s'
-    #      % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], ) )
+    #      % (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL], ) )
 
     return (0, 'OK')
 
@@ -481,12 +498,11 @@ def check_load_config_file(settings_dir, settings_file):
 def settings_editor(settings_file):
     ''' settings_editor '''
 
-    global DBG_LEVEL
-    global MY_SETTINGS
+    global GLOBALS
 
-    if SETTINGS_SECTION not in MY_SETTINGS.sections():
+    if SETTINGS_SECTION not in GLOBALS[G_MY_SETTINGS].sections():
         print('section %s doesn\'t exit' % SETTINGS_SECTION)
-        MY_SETTINGS.add_section(SETTINGS_SECTION)
+        GLOBALS[G_MY_SETTINGS].add_section(SETTINGS_SECTION)
 
     print('=== Settings ===')
 
@@ -496,7 +512,7 @@ def settings_editor(settings_file):
         setting_value = ''
 
         try:
-            setting_value = str(MY_SETTINGS.get(SETTINGS_SECTION, setting))
+            setting_value = str(GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, setting))
         except configparser.NoOptionError:
             if DFLT in SETTINGS_DEFAULTS[setting]:
                 setting_value = SETTINGS_DEFAULTS[setting][DFLT]
@@ -510,14 +526,14 @@ def settings_editor(settings_file):
         sys.stdout.flush()
         new_value = sys.stdin.readline().rstrip()
         if new_value not in ('', '\n'):
-            MY_SETTINGS.set(SETTINGS_SECTION, setting, new_value)
+            GLOBALS[G_MY_SETTINGS].set(SETTINGS_SECTION, setting, new_value)
         else:
-            MY_SETTINGS.set(SETTINGS_SECTION, setting, setting_value)
+            GLOBALS[G_MY_SETTINGS].set(SETTINGS_SECTION, setting, setting_value)
         print('')
 
     config_file_handle = open(settings_file, 'w')
     if config_file_handle:
-        MY_SETTINGS.write(config_file_handle)
+        GLOBALS[G_MY_SETTINGS].write(config_file_handle)
     else:
         print('Error, failed to open and write config file "%s"' %
               (settings_file, ))
@@ -539,10 +555,9 @@ def play_time():
 def play_file(audio_file_name):
     ''' plays a local audio file '''
 
-    global DBG_LEVEL
-    global MY_SETTINGS
+    global GLOBALS
 
-    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, PLAYER_COMMAND)
+    play_cmd = GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, PLAYER_COMMAND)
     play_cmd_array = play_cmd.split()
     play_cmd_array.append(audio_file_name)
     #print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
@@ -556,54 +571,48 @@ def play_channel(stream_url):
     ''' starts playing stream in a sub process
         if it sees STOP_PLAYBACK then it kills the player '''
 
-    global DBG_LEVEL
-    global MY_SETTINGS
-    global PLAYER_PID
-    global CHANNEL_PLAYING
-    global STOP_PLAYBACK
+    global GLOBALS
 
     url = stream_url
 
-    play_cmd = MY_SETTINGS.get(SETTINGS_SECTION, PLAYER_COMMAND)
+    play_cmd = GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, PLAYER_COMMAND)
     play_cmd_array = play_cmd.split()
     play_cmd_array.append(url)
     print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
 
     player_proc = subprocess.Popen(play_cmd_array, shell=False)
-    PLAYER_PID = player_proc.pid
+    GLOBALS[G_PLAYER_PID] = player_proc.pid
     print(str(player_proc) )
-    print('player pid %d' % (PLAYER_PID, ))
+    print('player pid %d' % (player_proc.pid, ))
     player_active = True
     while player_active:
         try:
             player_proc.wait(timeout=1)
             #print('Player finished')
             player_active = False
-            STOP_PLAYBACK = False
-            PLAYER_PID = 0
+            GLOBALS[G_STOP_PLAYBACK] = False
+            GLOBALS[G_PLAYER_PID] = 0
 
         except subprocess.TimeoutExpired:
             pass
             #print('Player still running')
 
-        if STOP_PLAYBACK:
+        if GLOBALS[G_STOP_PLAYBACK]:
             player_proc.kill()
 
     print('play_channel exiting')
-    CHANNEL_PLAYING = ''
+    GLOBALS[G_CHAN_NAME_PLAYING] = ''
 
 ##########################################################################################
 # SIGINT/ctrl-c handler
 def sigint_handler(_signal_number, _frame):
     ''' called when signal 2 or CTRL-C hits process, simply flags request to quit '''
 
-    global DBG_LEVEL
-    global EVENT
-    global QUIT_FLAG
+    global GLOBALS
 
     print('\nCTRL-C QUIT')
-    QUIT_FLAG = True
-    EVENT.set()
+    GLOBALS[G_QUIT_FLAG] = True
+    GLOBALS[G_EVENT].set()
 
 
 ##########################################################################################
@@ -611,19 +620,18 @@ def keyboard_listen_thread():
     ''' keyboard listening thread, sets raw input and uses sockets to
         get single key strokes without waiting, triggering an event. '''
 
-    global KEY_STROKE
-    global QUIT_FLAG
+    global GLOBALS
 
     # set term to raw, so doesn't wait for return
     old_settings = termios.tcgetattr(sys.stdin)
     tty.setcbreak(sys.stdin.fileno())
 
-    while QUIT_FLAG == 0:
+    while GLOBALS[G_QUIT_FLAG] == 0:
         # a bit ugly, but use a timeout just to occasionally check QUIT_FLAG
         readable_sockets, _o, _e = select.select([sys.stdin], [], [], KEYBOARD_POLL_TIMEOUT)
         if readable_sockets:
-            KEY_STROKE = sys.stdin.read(1)
-            EVENT.set()
+            GLOBALS[G_KEY_STROKE] = sys.stdin.read(1)
+            GLOBALS[G_EVENT].set()
 
     # set term back to cooked
     termios.tcsetattr(sys.stdin, termios.TCSADRAIN, old_settings)
@@ -634,32 +642,19 @@ def save_favourites(list_data):
     ''' saves the current favourites to a file '''
 
     write_list_file(FAVOURITES_HDR,
-                    os.path.join(os.environ['HOME'],SETTINGS_DIR, FAVOURITES_LIST),
+                    os.path.join(os.environ['HOME'], SETTINGS_DIR, FAVOURITES_LIST),
                     list_data)
 
 ##########################################################################################
 class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
     ''' minimal http request handler for remote control '''
 
-    global CHANNEL_NEXT
-    global CHANNEL_PLAYING
-    global EVENT
-    global KEY_STROKE
-    global PLAYER_PID
-    global RADIO_MODE
-    global STOP_PLAYBACK
+    global GLOBALS
 
     def do_GET(self):   # pylint:disable=invalid-name
         ''' implement the http GET method '''
 
-        global CHANNEL_NEXT
-        global CHANNEL_PLAYING
-        global KEY_STROKE
-        global EVENT
-        global PLAYER_PID
-        global RADIO_MODE
-        global STOP_PLAYBACK
-
+        global GLOBALS
 
         uri_get_regex = re.compile(r'GET (.*) HTTP.*')
         re_matches = uri_get_regex.match(self.requestline)
@@ -670,44 +665,43 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
 
         if '.png' in uri:
             print('Debug, attempting to send image')
-            return SimpleHTTPRequestHandler.do_GET(self)
+            SimpleHTTPRequestHandler.do_GET(self)
         else:
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
             print('Debug, executing command and sending status')
             # miss off the leading /
-            if uri[1:] in valid_web_commands:
-                KEY_STROKE = uri[1:]
-                EVENT.set()
+            if uri[1:] in VALID_WEB_COMMANDS:
+                GLOBALS[G_KEY_STROKE] = uri[1:]
+                GLOBALS[G_EVENT].set()
                 time.sleep(0.5)
 
-            if PLAYER_PID != 0:
-                if STOP_PLAYBACK:
-                    status_playing = '<tr><td>playing</td><td>%s but stopping soon</td></tr>\n' % CHANNEL_PLAYING
+            if GLOBALS[G_PLAYER_PID] != 0:
+                if GLOBALS[G_STOP_PLAYBACK]:
+                    status_playing = '<tr><td>playing</td><td>%s but stopping soon</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
                 else:
-                    status_playing = '<tr><td>playing</td><td>%s</td></tr>\n' % CHANNEL_PLAYING
+                    status_playing = '<tr><td>playing</td><td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
             else:
                 status_playing = ''
 
-            if CHANNEL_NEXT != '':
-                channel_next = '<tr><td>playing next</td><td>%s</td></tr>\n' % CHANNEL_NEXT
+            if GLOBALS[G_CHAN_NAME_FUTURE] != '':
+                channel_future = '<tr><td>playing next</td><td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_FUTURE]
             else:
-                channel_next = ''
+                channel_future = ''
 
-            radio_mode = '<tr><td>radio mode</td><td>%s</td></tr>' % (RM_TEXT[RADIO_MODE], )
-            status_complete = '%s%s%s' % (radio_mode, status_playing, channel_next, )
+            radio_mode = '<tr><td>radio mode</td><td>%s</td></tr>' % (RM_TEXT[GLOBALS[G_RADIO_MODE]], )
+            status_complete = '%s%s%s' % (radio_mode, status_playing, channel_future, )
 
-            favicon_url = '%s/favicon.ico' % (MY_SETTINGS[SETTINGS_SECTION][TS_URL], )
-            self.wfile.write(bytearray(WEB_HOME % (favicon_url, status_complete, ), encoding ='ascii'))
+            favicon_url = '%s/favicon.ico' % (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL], )
+            self.wfile.write(bytearray(WEB_HOME % (favicon_url, status_complete, ), encoding='ascii'))
 
 ##########################################################################################
 #def start_web_listener(wport, bind_host):
 def start_web_listener(httpd):
     ''' a very primitive web interface for remote control '''
 
-    global KEY_STROKE
-    global QUIT_FLAG
+    global GLOBALS
 
     print('Debug. starting httpd server')
     httpd.serve_forever()   # never returns
@@ -717,42 +711,33 @@ def start_web_listener(httpd):
 def radio_app():
     '''this runs the radio appliance'''
 
-    global CHANNEL_NEXT
-    global CHANNEL_PLAYING
-    global DBG_LEVEL
-    global EVENT
-    global KEY_STROKE
-    global MY_SETTINGS
-    global PLAYER_PID
-    global QUIT_FLAG
-    global RADIO_MODE
-    global STOP_PLAYBACK
+    global GLOBALS
 
     # read the streams file into a boringly simple dict
     streams_chan_map = read_list_file(os.path.join(os.environ['HOME'],
-                                      SETTINGS_DIR, STREAMS_LIST))
+                                                   SETTINGS_DIR, STREAMS_LIST))
     if streams_chan_map:
         print('There are %d streams' % (len(streams_chan_map), ))
 
     # get the favourites; if favourites are empty change the default
     # mode to TVH from favourites
     favourites_chan_map = read_list_file(os.path.join(os.environ['HOME'],
-                                      SETTINGS_DIR, FAVOURITES_LIST))
+                                                      SETTINGS_DIR, FAVOURITES_LIST))
     if favourites_chan_map:
         print('There are %d favourites' % (len(favourites_chan_map), ))
     else:
-        RADIO_MODE = RM_TVH
+        GLOBALS[G_RADIO_MODE] = RM_TVH
 
     # get the TVH channel map into the same format dict as the streams and favourites
     tvh_chan_map = get_tvh_chan_urls()
 
-    if RADIO_MODE == RM_TVH:
+    if GLOBALS[G_RADIO_MODE] == RM_TVH:
         print('tvh radio mode')
         chan_map = tvh_chan_map
-    elif RADIO_MODE == RM_STR:
+    elif GLOBALS[G_RADIO_MODE] == RM_STR:
         print('streaming radio mode')
         chan_map = streams_chan_map
-    elif RADIO_MODE == RM_FAV:
+    elif GLOBALS[G_RADIO_MODE] == RM_FAV:
         print('favourites radio mode')
         chan_map = favourites_chan_map
     else:
@@ -764,7 +749,8 @@ def radio_app():
     max_chan = len(chan_map)            # max channel number
 
     chan_num = 0                        # start at first channel
-    CHANNEL_NEXT = chan_names[chan_num]
+    GLOBALS[G_CHAN_NUM_FUTURE] = chan_num
+    GLOBALS[G_CHAN_NAME_FUTURE] = chan_names[chan_num]
 
     ####
     # now we have the data, lets do the radio thing!
@@ -779,44 +765,45 @@ def radio_app():
 
 
     # do we need to start a thread to act as the web server?
-    if MY_SETTINGS.get(SETTINGS_SECTION, WEB_PUBLIC) == '1':
+    if GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, WEB_PUBLIC) == '1':
         bind_host = ''
     else:
         bind_host = 'localhost'
-    wport = MY_SETTINGS.get(SETTINGS_SECTION, WEB_PORT)
+    wport = GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, WEB_PORT)
     if wport and wport != '' and wport.isnumeric():
         httpd = HTTPServer((bind_host, int(wport)), MyHTTPRequestHandler)
         threads.append(Thread(target=start_web_listener, args=(httpd, )))
         threads[-1].start()
 
 
-    print('Playing next: %s' % (chan_names[chan_num], ))
+    print('Playing next: %s' % (GLOBALS[G_CHAN_NAME_FUTURE], ))
     # SIGINT and keyboard strokes and (one day) GPIO events all get funnelled here
-    while not QUIT_FLAG:
-        EVENT.wait() # Blocks until the flag becomes true.
-        if KEY_STROKE != '':
-            if KEY_STROKE == 'A':   # secret key code :-)
+    while not GLOBALS[G_QUIT_FLAG]:
+        GLOBALS[G_EVENT].wait() # Blocks until the flag becomes true.
+        if GLOBALS[G_KEY_STROKE] != '':
+            if GLOBALS[G_KEY_STROKE] == 'A':   # secret key code :-)
                 api_test_func()
 
-            elif KEY_STROKE in ('?', 'h'):
+            elif GLOBALS[G_KEY_STROKE] in ('?', 'h'):
                 print_help()
 
-            #elif KEY_STROKE == 'l':
-                #DBG_LEVEL and print('list')
+            #elif GLOBALS[G_KEY_STROKE] == 'l':
+                #GLOBALS[G_DBG_LEVEL] and print('list')
                 #print('list')
                 #print(', '.join(chan_names))
 
-            elif KEY_STROKE == 'd':
-                DBG_LEVEL and print('down')
+            elif GLOBALS[G_KEY_STROKE] == 'd':
+                #GLOBALS[G_DBG_LEVEL] and print('down')
+                if GLOBALS[G_DBG_LEVEL]: print('down')
                 if chan_num > 0:
                     chan_num = chan_num - 1
 
-            elif KEY_STROKE == 'e':
-                DBG_LEVEL and print('e')
+            elif GLOBALS[G_KEY_STROKE] == 'e':
+                if GLOBALS[G_DBG_LEVEL]: print('e')
                 streams_editor()
 
-            elif KEY_STROKE == 'f':
-                DBG_LEVEL and print('favourite')
+            elif GLOBALS[G_KEY_STROKE] == 'f':
+                if GLOBALS[G_DBG_LEVEL]: print('favourite')
                 if chan_names[chan_num] in favourites_chan_map:
                     print('Removing channel %s to favourites' % (chan_names[chan_num], ))
                     del favourites_chan_map[chan_names[chan_num]]
@@ -825,14 +812,14 @@ def radio_app():
                     favourites_chan_map[chan_names[chan_num]] = chan_map[chan_names[chan_num]]
                     favourites_chan_map = dict(sorted(favourites_chan_map.items()))
                 # re-count the channels
-                if RADIO_MODE == RM_FAV:
+                if GLOBALS[G_RADIO_MODE] == RM_FAV:
                     max_chan = len(chan_map)
                     chan_names = list(chan_map.keys())  # get an indexable array
 
                 save_favourites(favourites_chan_map)
 
-            elif KEY_STROKE == 'F':
-                DBG_LEVEL and print('F')
+            elif GLOBALS[G_KEY_STROKE] == 'F':
+                if GLOBALS[G_DBG_LEVEL]: print('F')
                 if favourites_chan_map:
                     print('Favourites:')
                     print_channel_list('\t', favourites_chan_map)
@@ -840,40 +827,40 @@ def radio_app():
                     print('Warning, no favourites set')
 
 
-            elif KEY_STROKE == 'm':
-                DBG_LEVEL and print('mode')
+            elif GLOBALS[G_KEY_STROKE] == 'm':
+                if GLOBALS[G_DBG_LEVEL]: print('mode')
                 # if changing mode, kill a running player
-                while PLAYER_PID != 0:
+                while GLOBALS[G_PLAYER_PID] != 0:
                     print('Waiting to stop playback before changing mode')
-                    STOP_PLAYBACK = True
-                    CHANNEL_PLAYING = ''
+                    GLOBALS[G_STOP_PLAYBACK] = True
+                    GLOBALS[G_CHAN_NAME_PLAYING] = ''
                     time.sleep(1)
 
                 # cycle between modes and choose the channel map for new mode
-                if RADIO_MODE == RM_TVH:
-                    RADIO_MODE = RM_STR
+                if GLOBALS[G_RADIO_MODE] == RM_TVH:
+                    GLOBALS[G_RADIO_MODE] = RM_STR
                     chan_map = streams_chan_map
 
-                elif RADIO_MODE == RM_STR:
-                    RADIO_MODE = RM_FAV
+                elif GLOBALS[G_RADIO_MODE] == RM_STR:
+                    GLOBALS[G_RADIO_MODE] = RM_FAV
                     chan_map = favourites_chan_map
 
-                elif RADIO_MODE == RM_FAV:
-                    RADIO_MODE = RM_TVH
+                elif GLOBALS[G_RADIO_MODE] == RM_FAV:
+                    GLOBALS[G_RADIO_MODE] = RM_TVH
                     chan_map = tvh_chan_map
                 else:
                     print('Error, mode change went wrong!')
 
-                print('Debug, mode is now %s' % (RADIO_MODE,))
+                print('Debug, mode is now %s' % (GLOBALS[G_RADIO_MODE],))
                 chan_num = 0                        # start at first channel
                 chan_names = list(chan_map.keys())  # get an indexable array
                 max_chan = len(chan_map)            # max channel number
 
 
-            elif KEY_STROKE == 'p':
-                DBG_LEVEL and print('play')
-                if PLAYER_PID == 0:
-                    CHANNEL_PLAYING = chan_names[chan_num]
+            elif GLOBALS[G_KEY_STROKE] == 'p':
+                if GLOBALS[G_DBG_LEVEL]: print('play')
+                if GLOBALS[G_PLAYER_PID] == 0:
+                    GLOBALS[G_CHAN_NAME_PLAYING] = chan_names[chan_num]
                     print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
                     stream_url = chan_map[chan_names[chan_num]]
                     threads = []
@@ -881,49 +868,58 @@ def radio_app():
                     threads[-1].start()
                 else:
                     print('Setting STOP_PLAYBACK true')
-                    STOP_PLAYBACK = True
-                    CHANNEL_PLAYING = ''
+                    GLOBALS[G_STOP_PLAYBACK] = True
+                    GLOBALS[G_CHAN_NAME_PLAYING] = ''
 
-            elif KEY_STROKE == 'q':
+            elif GLOBALS[G_KEY_STROKE] == 'q':
                 print('Quit!')
-                while PLAYER_PID != 0:
+                while GLOBALS[G_PLAYER_PID] != 0:
                     print('Waiting to stop playback')
-                    STOP_PLAYBACK = True
+                    GLOBALS[G_STOP_PLAYBACK] = True
                     time.sleep(1)
-                    CHANNEL_PLAYING = ''
+                    GLOBALS[G_CHAN_NAME_PLAYING] = ''
 
-                QUIT_FLAG = 1
+                GLOBALS[G_QUIT_FLAG] = 1
 
-            elif KEY_STROKE == 's':
-                tts_file = chan_data_to_tts_file(chan_names[chan_num])
+            elif GLOBALS[G_KEY_STROKE] == 's':
+                if GLOBALS[G_CHAN_NAME_PLAYING]:
+                    tts_file = chan_data_to_tts_file(GLOBALS[G_CHAN_NAME_PLAYING])
+                    play_file(tts_file)
+                else:
+                    print('Debug, not playing a channel so not speaking it\'s name')
+
+            elif GLOBALS[G_KEY_STROKE] == 'S':
+                print('Debug, speaking future channel name %s' % (GLOBALS[G_CHAN_NAME_FUTURE], ))
+                tts_file = chan_data_to_tts_file(GLOBALS[G_CHAN_NAME_FUTURE])
                 play_file(tts_file)
 
-            elif KEY_STROKE == 't':
+            elif GLOBALS[G_KEY_STROKE] == 't':
                 play_time()
 
-            elif KEY_STROKE == 'u':
-                DBG_LEVEL and print('up')
+            elif GLOBALS[G_KEY_STROKE] == 'u':
+                if GLOBALS[G_DBG_LEVEL]: print('up')
                 if chan_num < max_chan - 1:
                     chan_num = chan_num + 1
 
-            elif KEY_STROKE == 'm':
-                if RADIO_MODE == RM_TVH:
-                    RADIO_MODE = RM_STR
+            elif GLOBALS[G_KEY_STROKE] == 'm':
+                if GLOBALS[G_RADIO_MODE] == RM_TVH:
+                    GLOBALS[G_RADIO_MODE] = RM_STR
                 else:
-                    RADIO_MODE = RM_TVH
+                    GLOBALS[G_RADIO_MODE] = RM_TVH
                     get_tvh_chan_urls()
-                print('Mode now %s' % (RADIO_MODE, ))
+                print('Mode now %s' % (GLOBALS[G_RADIO_MODE], ))
 
             else:
                 print('Unknown key')
 
-            KEY_STROKE = ''
+            GLOBALS[G_KEY_STROKE] = ''
         else:
-            print('Error, key "%s"' % (KEY_STROKE,))
+            print('Error, unknown command key "%s"' % (GLOBALS[G_KEY_STROKE],))
 
-        print('Playing next: %s' % (chan_names[chan_num], ))
-        CHANNEL_NEXT = chan_names[chan_num]
-        EVENT.clear() # Resets the flag.
+        GLOBALS[G_CHAN_NUM_FUTURE] = chan_num
+        GLOBALS[G_CHAN_NAME_FUTURE] = chan_names[chan_num]
+        GLOBALS[G_EVENT].clear() # Resets the flag.
+        print('Future channel: %s' % (GLOBALS[G_CHAN_NAME_FUTURE], ))
 
     if httpd:
         print('Waiting for web service to shut down')
@@ -939,17 +935,7 @@ def radio_app():
 def main():
     '''the main entry point'''
 
-    global CHANNEL_NEXT
-    global CHANNEL_PLAYING
-    global DBG_LEVEL
-    global EVENT
-    global KEY_STROKE
-    global MY_SETTINGS
-    global PLAYER_PID
-    global RADIO_MODE
-    global SETTINGS_DIR
-    global SETTINGS_FILE
-    global STOP_PLAYBACK
+    global GLOBALS
 
     # settings_file is the fully qualified path to the settings file
     settings_dir = os.path.join(os.environ['HOME'], SETTINGS_DIR)
@@ -964,8 +950,8 @@ def main():
     args = parser.parse_args()
 
     if args.debug:
-        DBG_LEVEL += 1
-        print('Debug, increased debug level to %d' % (DBG_LEVEL, ))
+        GLOBALS[G_DBG_LEVEL] += 1
+        print('Debug, increased debug level to %d' % (GLOBALS[G_DBG_LEVEL], ))
 
     if args.setup or config_bad < 0:
         if config_bad < -1:
@@ -982,16 +968,19 @@ def main():
 ##########################################################################################
 
 if __name__ == "__main__":
-    DBG_LEVEL = 0
-    KEY_STROKE = ''
-    PLAYER_PID = 0
-    CHANNEL_NEXT = ''
-    CHANNEL_PLAYING = ''
-    QUIT_FLAG = False
-    STOP_PLAYBACK = False
 
-    EVENT = Event()
-    MY_SETTINGS = configparser.ConfigParser()
+    # initialise all globals
+    GLOBALS[G_CHAN_NUM_FUTURE]  = 0         # the channel chosen but not playing
+    GLOBALS[G_CHAN_NAME_PLAYING] = ''       # the channel currently playing
+    GLOBALS[G_DBG_LEVEL]        = 0         #
+    GLOBALS[G_EVENT]            = Event()   # global event handler
+    GLOBALS[G_KEY_STROKE]       = ''        # no key been pressed
+    GLOBALS[G_MY_SETTINGS]      = configparser.ConfigParser() # configuration are global
+    GLOBALS[G_PLAYER_PID]       = 0         # not playing
+    GLOBALS[G_QUIT_FLAG]        = False     # quit not triggered
+    GLOBALS[G_RADIO_MODE]       = RM_FAV    # default
+    GLOBALS[G_STOP_PLAYBACK]    = False     # playback stop triggered
+
     main()
 
 # vim: tabstop=8 expandtab shiftwidth=4 softtabstop=4
