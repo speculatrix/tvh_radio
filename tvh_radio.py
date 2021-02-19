@@ -172,38 +172,38 @@ WEB_HOME = '''<html>
 </tr>
 %s
 <tr>
-    <td><a href='/u'><img src="/up.png" /></a></td>
+    <td align="right"><a href='/u'><img src="/up.png" /></a></td>
     <td>up a channel</td>
 </tr>
 
 <tr>
-    <td><a href='/d'><img src="/down.png" /></a></td>
+    <td align="right"><a href='/d'><img src="/down.png" /></a></td>
     <td>down a channel</td>
 </tr>
 
 <tr>
-    <td><a href='/p'><img src="/ball.red.png" /></a></td>
+    <td align="right"><a href='/p'><img src="/ball.red.png" /></a></td>
     <td>play/pause</td>
 </tr>
 
 <tr>
-    <td><a href='/f'><img src="/image1.png" /></a></td>
+    <td align="right"><a href='/f'><img src="/image1.png" /></a></td>
     <td>favourite toggle</td>
 </tr>
 <tr>
-    <td><a href='/m'><img src="/forward.png" /></a></td>
+    <td align="right"><a href='/m'><img src="/forward.png" /></a></td>
     <td>change mode</td>
 </tr>
 <tr>
-    <td><a href='/s'><img src="/sound1.png" /></a></td>
+    <td align="right"><a href='/s'><img src="/sound1.png" /></a></td>
     <td>speak the current channel name</td>
 </tr>
 <tr>
-    <td><a href='/S'><img src="/sound1.png" /></a></td>
+    <td align="right"><a href='/S'><img src="/sound1.png" /></a></td>
     <td>speak the future channel name</td>
 </tr>
 <tr>
-    <td><a href='/t'><img src="/world2.png" /></a></td>
+    <td align="right"><a href='/t'><img src="/world2.png" /></a></td>
     <td>time and date</td>
 </tr>
 </table>
@@ -679,18 +679,18 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
 
             if GLOBALS[G_PLAYER_PID] != 0:
                 if GLOBALS[G_STOP_PLAYBACK]:
-                    status_playing = '<tr><td>playing</td><td>%s but stopping soon</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
+                    status_playing = '<tr><td align="right">playing</td><td>%s but stopping soon</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
                 else:
-                    status_playing = '<tr><td>playing</td><td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
+                    status_playing = '<tr><td align="right">playing</td><td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
             else:
                 status_playing = ''
 
             if GLOBALS[G_CHAN_NAME_FUTURE] != '':
-                channel_future = '<tr><td>playing next</td><td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_FUTURE]
+                channel_future = '<tr><td align="right">playing in future</td><td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_FUTURE]
             else:
                 channel_future = ''
 
-            radio_mode = '<tr><td>radio mode</td><td>%s</td></tr>' % (RM_TEXT[GLOBALS[G_RADIO_MODE]], )
+            radio_mode = '<tr><td align="right">radio mode</td><td>%s</td></tr>' % (RM_TEXT[GLOBALS[G_RADIO_MODE]], )
             status_complete = '%s%s%s' % (radio_mode, status_playing, channel_future, )
 
             favicon_url = '%s/favicon.ico' % (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL], )
