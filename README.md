@@ -42,7 +42,7 @@ There are many radio streaming programs around, why is this one different?
 Note: the speaking function uses Google's text to speech engine, so
 you need an ok internet connection for this to download the audio.
 It caches the recording of the channel names which means that it
-will become more reliable on sunsequent use.
+will become more reliable on subsequent use.
 
 
 ## Usage
@@ -90,10 +90,11 @@ type Audio, set the name to audio-only, and click Apply.
 
 ### Create a user with persistent authentication token
 
-Create a user for playing media, enabling persistent authentication, and copy
-off the username and the token and put into the settings.
+Create a user account with a password and persistent authentication like this:
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/tvh-user-entry.png)
 
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/webby_user.png)
+Then create an access entry for thet use allowing playing media etc like this:
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/tvh-access-entry.png)
 
 
 
