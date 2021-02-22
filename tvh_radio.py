@@ -158,12 +158,16 @@ u - up a channel
 
 VALID_WEB_COMMANDS = ('d', 'f', 'F', 'm', 'p', 's', 'S', 't', 'u', )
 
-WEB_HOME = '''<html>
+# web page head html with option to insert a string
+WEB_HEAD = '''<html>
 <head>
     <title>tvh_radio.py</title>
     <link rel="shortcut icon" type="image/png" href="%s"/>
-    </head>
-<body>
+    %s
+</head>
+'''
+
+WEB_BODY = '''<body>
 <h1>tvh_radio.py</h1>
 
 <table border="0">
@@ -670,12 +674,21 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
             self.send_response(200)
             self.send_header('Content-type', 'text/html')
             self.end_headers()
+
             print('Debug, executing command and sending status')
             # miss off the leading /
             if uri[1:] in VALID_WEB_COMMANDS:
                 GLOBALS[G_KEY_STROKE] = uri[1:]
                 GLOBALS[G_EVENT].set()
                 time.sleep(0.5)
+                # refresh after entering a command, not too quickly as the
+                # user might be quickly changing channels
+                extra_header = '  <meta http-equiv="refresh" content="3;/">'
+            else:
+                extra_header = ''
+
+            favicon_url = '%s/favicon.ico' % (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL], )
+            self.wfile.write(bytearray(WEB_HEAD % (favicon_url, extra_header, ), encoding='ascii'))
 
             if GLOBALS[G_PLAYER_PID] != 0:
                 if GLOBALS[G_STOP_PLAYBACK]:
@@ -693,8 +706,7 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
             radio_mode = '<tr><td align="right">radio mode</td><td>%s</td></tr>' % (RM_TEXT[GLOBALS[G_RADIO_MODE]], )
             status_complete = '%s%s%s' % (radio_mode, status_playing, channel_future, )
 
-            favicon_url = '%s/favicon.ico' % (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL], )
-            self.wfile.write(bytearray(WEB_HOME % (favicon_url, status_complete, ), encoding='ascii'))
+            self.wfile.write(bytearray(WEB_BODY % (status_complete, ), encoding='ascii'))
 
 ##########################################################################################
 #def start_web_listener(wport, bind_host):
