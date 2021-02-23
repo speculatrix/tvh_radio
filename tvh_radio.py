@@ -109,10 +109,11 @@ SETTINGS_DEFAULTS = {
     },
     PLAYER_COMMAND: {
         TITLE: 'Player',
-        DFLT: '/usr/bin/omxplayer.bin -o alsa',
+        DFLT: '/usr/bin/omxplayer.bin -o alsa --threshold 2',
         #DFLT: 'vlc -I dummy --novideo',
-        HELP: 'Command to play media with arguments, try "/usr/bin/omxplayer.bin -o ' \
-               'alsa" or "vlc -I dummy --novideo --play-and-exit"',
+        HELP: 'Command to play media with arguments, try:\n'        \
+              '"/usr/bin/omxplayer.bin -o alsa --threshold 2" or\n' \
+              '"vlc -I dummy --novideo --play-and-exit"',
     },
     WEB_PORT: {
         TITLE: 'Web Port',
@@ -443,10 +444,10 @@ def get_tvh_chan_urls():
                 name_unknown += 1
 
             chan_map[chan_name] = '%s/%s/%s?profile=audio-only%s' % \
-                                  ( GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL],
-                                    TS_URL_STR,
-                                    entry['uuid'],
-                                    ts_pauth, )
+                                  (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL],
+                                   TS_URL_STR,
+                                   entry['uuid'],
+                                   ts_pauth, )
 
     if GLOBALS[G_DBG_LEVEL] > 0:
         print('%s' % json.dumps(chan_map, sort_keys=True, \
@@ -586,7 +587,7 @@ def play_channel(stream_url):
 
     player_proc = subprocess.Popen(play_cmd_array, shell=False)
     GLOBALS[G_PLAYER_PID] = player_proc.pid
-    print(str(player_proc) )
+    print(str(player_proc))
     print('player pid %d' % (player_proc.pid, ))
     player_active = True
     while player_active:
@@ -692,18 +693,23 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
 
             if GLOBALS[G_PLAYER_PID] != 0:
                 if GLOBALS[G_STOP_PLAYBACK]:
-                    status_playing = '<tr><td align="right">playing</td><td>%s but stopping soon</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
+                    status_playing = '<tr><td align="right">playing</td>'   \
+                                     '<td>%s but stopping soon</td></tr>\n' \
+                                     % GLOBALS[G_CHAN_NAME_PLAYING]
                 else:
-                    status_playing = '<tr><td align="right">playing</td><td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
+                    status_playing = '<tr><td align="right">playing</td>'   \
+                                     '<td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
             else:
                 status_playing = ''
 
             if GLOBALS[G_CHAN_NAME_FUTURE] != '':
-                channel_future = '<tr><td align="right">playing in future</td><td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_FUTURE]
+                channel_future = '<tr><td align="right">playing in future</td>' \
+                                 '<td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_FUTURE]
             else:
                 channel_future = ''
 
-            radio_mode = '<tr><td align="right">radio mode</td><td>%s</td></tr>' % (RM_TEXT[GLOBALS[G_RADIO_MODE]], )
+            radio_mode = '<tr><td align="right">radio mode</td>'    \
+                         '<td>%s</td></tr>' % (RM_TEXT[GLOBALS[G_RADIO_MODE]], )
             status_complete = '%s%s%s' % (radio_mode, status_playing, channel_future, )
 
             self.wfile.write(bytearray(WEB_BODY % (status_complete, ), encoding='ascii'))
@@ -876,7 +882,7 @@ def radio_app():
                     print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
                     stream_url = chan_map[chan_names[chan_num]]
                     threads = []
-                    threads.append(Thread(target=play_channel, args=(stream_url, ) ))
+                    threads.append(Thread(target=play_channel, args=(stream_url, )))
                     threads[-1].start()
                 else:
                     print('Setting STOP_PLAYBACK true')
@@ -968,10 +974,10 @@ def main():
     if args.setup or config_bad < 0:
         if config_bad < -1:
             print('Error, severe problem with settings, please fix and restart program')
-            print('%s' % (error_text,) )
+            print('%s' % (error_text, ))
             sys.exit(1)
         if config_bad < 0:
-            print('%s' % (error_text,) )
+            print('%s' % (error_text, ))
         settings_editor(settings_file)
     else:
         radio_app()
