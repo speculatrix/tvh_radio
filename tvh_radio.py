@@ -280,6 +280,34 @@ def streams_editor():
           (os.path.join(os.environ['HOME'], SETTINGS_DIR, STREAMS_LIST), ))
 
 ##########################################################################################
+def channel_editor():
+    ''' unused but an idea for a very simple channel editor '''
+
+    print('=== Channel Editor ===')
+    chan_map = get_str_chan_urls()
+
+    print('a - add channel')
+    print('d - delete channel')
+    print('e - exit and save')
+    print('l - list')
+    print('q - quit without saving')
+
+    cmd =''
+    while cmd != 'e' and cmd !='q':
+        cmd = input('? ')
+        if cmd == 'a':
+            if chan_add(chan_map):
+                max_chan = len(chan_map)
+        elif cmd == 'd':
+            chan_del(chan_map)
+        elif cmd == 'l':
+            chan_list(chan_map)
+        elif cmd == 'e':
+            print('Saving')
+            save_str_chan_urls(chan_map)
+
+
+##########################################################################################
 def print_channel_list(prefix, chan_list):
     ''' prints a channel list '''
 
