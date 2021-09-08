@@ -59,6 +59,8 @@ TS_PAUTH = 'ts_pauth'
 
 TS_PROFILE = 'pass'                 # use audio-only or pass
 
+TS_MAX_CHAN = 9999                  # channel count limit when calling TS_URL_CHN
+
 PLAYER_COMMAND = 'player_command'
 
 WEB_PORT = 'web_port'              # default web port, 0 to disable, 8080 suggested
@@ -436,9 +438,10 @@ def get_tvh_chan_urls():
     ts_url = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL]
     ts_user = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_USER]
     ts_pass = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PASS]
-    ts_query = '%s/%s?limit=400' % (
+    ts_query = '%s/%s?limit=%d' % (
         ts_url,
         TS_URL_CHN,
+        TS_MAX_CHAN,
     )
     ts_response = requests.get(ts_query, auth=(ts_user, ts_pass))
     #print('<!-- get_tvh_chan_urls URL %s -->' % (ts_query, ))
