@@ -56,10 +56,9 @@ TS_URL = 'ts_url'
 TS_USER = 'ts_user'
 TS_PASS = 'ts_pass'
 TS_PAUTH = 'ts_pauth'
+TS_CHN_LIMIT = 'ts_chn_lim'
 
 TS_PROFILE = 'pass'                 # use audio-only or pass
-
-TS_MAX_CHAN = 9999                  # channel count limit when calling TS_URL_CHN
 
 PLAYER_COMMAND = 'player_command'
 
@@ -93,6 +92,11 @@ SETTINGS_DEFAULTS = {
         DFLT: 'http://tvh.example.com:9981',
         HELP: 'This is the URL of the TV Headend Server main web interface, ' \
               'without the trailing slash',
+    },
+    TS_CHN_LIMIT: {
+        TITLE: '',
+        DFLT: '1000',
+        HELP: 'Limits the channels returned by TVHeadend when asking for a channel list',
     },
     TS_USER: {
         TITLE: 'User',
@@ -438,10 +442,10 @@ def get_tvh_chan_urls():
     ts_url = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL]
     ts_user = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_USER]
     ts_pass = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PASS]
-    ts_query = '%s/%s?limit=%d' % (
+    ts_query = '%s/%s?limit=%s' % (
         ts_url,
         TS_URL_CHN,
-        TS_MAX_CHAN,
+        GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_CHN_LIMIT],
     )
     ts_response = requests.get(ts_query, auth=(ts_user, ts_pass))
     #print('<!-- get_tvh_chan_urls URL %s -->' % (ts_query, ))
@@ -951,8 +955,9 @@ def radio_app():
 
                 # playback has finished
                 GLOBALS[G_CHAN_NAME_PLAYING] = ''
-                threads['PB'].join()
-                del threads['PB']
+                if 'PB' in threads:
+                    threads['PB'].join()
+                    del threads['PB']
                 GLOBALS[G_QUIT_FLAG] = 1
 
             elif GLOBALS[G_KEY_STROKE] == 's':
@@ -1000,9 +1005,9 @@ def radio_app():
         httpd.shutdown()
         time.sleep(1)
 
-    for thread in threads:
+    for thread_name in threads:
         print('Debug, joining thread %s to this' % (thread, ))
-        threads[thread].join()
+        threads[thread_name].join()
 
 
 ##########################################################################################
