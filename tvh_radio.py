@@ -51,7 +51,6 @@ KEYBOARD_POLL_TIMEOUT = 0.5
 TS_URL_CHN = 'api/channel/grid'
 TS_URL_STR = 'stream/channel'
 TS_URL_PEG = 'api/passwd/entry/grid'
-
 TS_MAX_CHANS = 1600 # don't fetch more than this number of channels
 
 # name of Tvheadend Server parameters
@@ -59,7 +58,9 @@ TS_URL = 'ts_url'
 TS_USER = 'ts_user'
 TS_PASS = 'ts_pass'
 TS_PAUTH = 'ts_pauth'
-TS_AUTH_TYPE='ts_auth_type'
+TS_AUTH_TYPE='ts_auth_type'         # digest or plain authentication
+TS_CHN_LIMIT = 'ts_chn_lim'         # see TS_MAX_CHANS
+TS_PROFILE = 'pass'                 # use audio-only or pass
 
 PLAYER_COMMAND = 'player_command'
 
@@ -93,6 +94,11 @@ SETTINGS_DEFAULTS = {
         DFLT: 'http://tvh.example.com:9981',
         HELP: 'This is the URL of the TV Headend Server main web interface, ' \
               'without the trailing slash',
+    },
+    TS_CHN_LIMIT: {
+        TITLE: '',
+        DFLT: '1000',
+        HELP: 'Limits the channels returned by TVHeadend when asking for a channel list',
     },
     TS_AUTH_TYPE: {
         TITLE:  'Authentication, digest or plain',
@@ -296,8 +302,37 @@ def streams_editor():
           (os.path.join(os.environ['HOME'], SETTINGS_DIR, STREAMS_LIST), ))
 
 ##########################################################################################
+def channel_editor(chan_map):
+    ''' unused but an idea for a very simple channel editor '''
+
+    print('=== Channel Editor ===')
+
+    print('a - add channel')
+    print('d - delete channel')
+    print('e - exit and save')
+    print('l - list')
+    print('q - quit without saving')
+
+    cmd =''
+    while cmd not in [ 'e', 'q', ]:
+        cmd = input('? ')
+        if cmd == 'a':
+            print('Channel name to add: ')
+            print('Channel url to add: ')
+            #if chan_add(chan_map):
+                #max_chan = len(chan_map)
+        elif cmd == 'd':
+            #chan_del(chan_map)
+            print('Number of channel to delete: ')
+        elif cmd == 'l':
+            print_channel_list('\t', chan_map)
+
+
+##########################################################################################
 def print_channel_list(prefix, chan_list):
-    ''' prints a channel list '''
+    ''' prints a channel list, with the prefix being an arbitrary string starting
+        each line, so use '\t' or ' ' for example
+    '''
 
     for (chan_name, chan_url) in chan_list.items():
         print("%s%s : %s" % (prefix, chan_name, chan_url, ))
@@ -422,10 +457,10 @@ def get_tvh_chan_urls():
     ts_auth_type = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_AUTH_TYPE]
     ts_user = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_USER]
     ts_pass = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PASS]
-    ts_query = '%s/%s?limit=%d' % (
+    ts_query = '%s/%s?limit=%s' % (
         ts_url,
         TS_URL_CHN,
-        TS_MAX_CHANS,
+        GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_CHN_LIMIT],
     )
 
     if ts_auth_type == 'plain':
@@ -466,10 +501,11 @@ def get_tvh_chan_urls():
                 chan_name = 'unknown ' + str(name_unknown)
                 name_unknown += 1
 
-            chan_map[chan_name] = '%s/%s/%s?profile=audio-only%s' % \
+            chan_map[chan_name] = '%s/%s/%s?profile=%s%s' % \
                                   (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL],
                                    TS_URL_STR,
                                    entry['uuid'],
+                                   TS_PROFILE,
                                    ts_pauth, )
 
     if GLOBALS[G_DBG_LEVEL] > 0:
@@ -610,22 +646,29 @@ def play_channel(stream_url):
 
     player_proc = subprocess.Popen(play_cmd_array, shell=False)
     GLOBALS[G_PLAYER_PID] = player_proc.pid
-    print(str(player_proc))
-    print('player pid %d' % (player_proc.pid, ))
+    if GLOBALS[G_DBG_LEVEL]: print('Debug, player pid %d' % (player_proc.pid, ))
+
     player_active = True
+
+    # we check every second if the player is running or told to kill it
     while player_active:
         try:
+            # poll for playback process to end
             player_proc.wait(timeout=1)
-            #print('Player finished')
+            # only gets here if playback process ended
+            #print('Debug, player finished')
             player_active = False
             GLOBALS[G_STOP_PLAYBACK] = False
             GLOBALS[G_PLAYER_PID] = 0
 
+        # if the player is still running this exception is called
         except subprocess.TimeoutExpired:
             pass
-            #print('Player still running')
+            #print('Debug, player still running')
 
+        # kill the player on demand
         if GLOBALS[G_STOP_PLAYBACK]:
+            #print('Debug, killing player process')
             player_proc.kill()
 
     print('play_channel exiting')
@@ -799,11 +842,12 @@ def radio_app():
     # trap ctrl-x/sigint so we can clean up
     signal.signal(signal.SIGINT, sigint_handler)
 
-    # start a thread to listen to the keyboard
-    threads = []
-    threads.append(Thread(target=keyboard_listen_thread))
-    threads[-1].start()
+    # handles on the threads
+    threads = {}
 
+    # start a thread to listen to the keyboard
+    threads['KB'] = Thread(target=keyboard_listen_thread)
+    threads['KB'].start()
 
     # do we need to start a thread to act as the web server?
     if GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, WEB_PUBLIC) == '1':
@@ -813,9 +857,8 @@ def radio_app():
     wport = GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, WEB_PORT)
     if wport and wport != '' and wport.isnumeric():
         httpd = HTTPServer((bind_host, int(wport)), MyHTTPRequestHandler)
-        threads.append(Thread(target=start_web_listener, args=(httpd, )))
-        threads[-1].start()
-
+        threads['WWW'] = Thread(target=start_web_listener, args=(httpd, ))
+        threads['WWW'].start()
 
     print('Playing next: %s' % (GLOBALS[G_CHAN_NAME_FUTURE], ))
     # SIGINT and keyboard strokes and (one day) GPIO events all get funnelled here
@@ -842,6 +885,12 @@ def radio_app():
             elif GLOBALS[G_KEY_STROKE] == 'e':
                 if GLOBALS[G_DBG_LEVEL]: print('e')
                 streams_editor()
+
+            elif GLOBALS[G_KEY_STROKE] == 'E':
+                if GLOBALS[G_DBG_LEVEL]: print('E')
+                channel_editor(chan_map)
+                #max_chan = len(chan_map)
+                #chan_names = list(chan_map.keys())  # get an indexable array
 
             elif GLOBALS[G_KEY_STROKE] == 'f':
                 if GLOBALS[G_DBG_LEVEL]: print('favourite')
@@ -904,23 +953,28 @@ def radio_app():
                     GLOBALS[G_CHAN_NAME_PLAYING] = chan_names[chan_num]
                     print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
                     stream_url = chan_map[chan_names[chan_num]]
-                    threads = []
-                    threads.append(Thread(target=play_channel, args=(stream_url, )))
-                    threads[-1].start()
+                    threads['PB'] = Thread(target=play_channel, args=(stream_url, ))
+                    threads['PB'].start()
                 else:
                     print('Setting STOP_PLAYBACK true')
                     GLOBALS[G_STOP_PLAYBACK] = True
                     GLOBALS[G_CHAN_NAME_PLAYING] = ''
+                    threads['PB'].join()
+                    del threads['PB']
 
             elif GLOBALS[G_KEY_STROKE] == 'q':
                 print('Quit!')
-                while GLOBALS[G_PLAYER_PID] != 0:
-                    print('Waiting to stop playback')
-                    GLOBALS[G_STOP_PLAYBACK] = True
-                    time.sleep(1)
-                    GLOBALS[G_CHAN_NAME_PLAYING] = ''
-
                 GLOBALS[G_QUIT_FLAG] = 1
+                GLOBALS[G_STOP_PLAYBACK] = True
+                if 'PB' in threads:
+                    # wait for the sub process to finish, ugly polling hack!
+                    while GLOBALS[G_PLAYER_PID] != 0:
+                        print('Info, waiting to stop playback')
+                        time.sleep(1)
+                    # playback has finished
+                    GLOBALS[G_CHAN_NAME_PLAYING] = ''
+                    threads['PB'].join()
+                    del threads['PB']
 
             elif GLOBALS[G_KEY_STROKE] == 's':
                 if GLOBALS[G_CHAN_NAME_PLAYING]:
@@ -967,9 +1021,9 @@ def radio_app():
         httpd.shutdown()
         time.sleep(1)
 
-    for thread in threads:
-        print('Debug, joining thread to this')
-        thread.join()
+    for thread_name in threads:
+        print('Debug, joining thread %s to this' % (thread_name, ))
+        threads[thread_name].join()
 
 
 ##########################################################################################

@@ -12,10 +12,16 @@ life of its own.
 
 This project allows any linux device (actually, anything that can run
 Python3), such as a Raspberry Pi, to be used as a radio-like appliance,
-streaming from a TV Headend server or from a list of URLs (TBD).
+streaming from a TV Headend server or from a list of URLs.
 
-The program works fairly well now, and I am adding a very basic web interface
-for remote control - see the roadmap at the end of this page.
+I have tried to make this an app which can also be used by partially
+sighted people, by making it possible to speak the channel name or
+the time.
+
+The program works fairly well now, and I have recently added simple web
+interface for remote control - see the roadmap at the end of this page.
+This is designed to be as basic as possible so it will work with an old
+phone or tablet.
 
 I wrote this partly to stretch my python skills, but mostly because I wanted
 to be able to turn a Raspberry Pi0/W into the basis of a streaming receiver.
@@ -33,8 +39,10 @@ There are many radio streaming programs around, why is this one different?
 * Fifthly, it can speak the current time and date
 
 
-Note: the speaking function uses Google's text to speech engine, so you need
-an ok internet connection for this to download the audio.
+Note: the speaking function uses Google's text to speech engine, so
+you need an ok internet connection for this to download the audio.
+It caches the recording of the channel names which means that it
+will become more reliable on subsequent use.
 
 
 ## Usage
@@ -82,10 +90,11 @@ type Audio, set the name to audio-only, and click Apply.
 
 ### Create a user with persistent authentication token
 
-Create a user for playing media, enabling persistent authentication, and copy
-off the username and the token and put into the settings.
+Create a user account with a password and persistent authentication like this:
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/tvh-user-entry.png)
 
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/webby_user.png)
+Then create an access entry for thet use allowing playing media etc like this:
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/tvh-access-entry.png)
 
 
 
@@ -116,6 +125,15 @@ key functions
 * s - speak channel name
 * t - speak time
 * u - up a channel
+
+## web remote control
+
+If you are using the Pi as your desktop, you can access tvh_radio.py
+on http://localhost otherwise you will need to enable the web interface
+to be public in the settings. Then you can access it as http://a.b.c.d/
+
+This is what you should see
+![screen-shot-of-web-interface](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/web_interface_screenshot.png)
 
 
 # Road Map
