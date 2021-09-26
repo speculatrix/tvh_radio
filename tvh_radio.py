@@ -949,7 +949,7 @@ def radio_app():
 
             elif GLOBALS[G_KEY_STROKE] == 'p':
                 if GLOBALS[G_DBG_LEVEL]: print('play')
-                if GLOBALS[G_PLAYER_PID] == 0:
+                if 'PB' not in threads:
                     GLOBALS[G_CHAN_NAME_PLAYING] = chan_names[chan_num]
                     print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
                     stream_url = chan_map[chan_names[chan_num]]
@@ -958,6 +958,11 @@ def radio_app():
                 else:
                     print('Setting STOP_PLAYBACK true')
                     GLOBALS[G_STOP_PLAYBACK] = True
+                    # wait for the sub process to finish, ugly polling hack!
+                    while GLOBALS[G_PLAYER_PID] != 0:
+                        print('Info, waiting to stop playback')
+                        time.sleep(1)
+                    # playback has finished
                     GLOBALS[G_CHAN_NAME_PLAYING] = ''
                     threads['PB'].join()
                     del threads['PB']
