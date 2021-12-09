@@ -624,7 +624,7 @@ def play_file(audio_file_name):
     play_cmd = GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, PLAYER_COMMAND)
     play_cmd_array = play_cmd.split()
     play_cmd_array.append(audio_file_name)
-    #print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
+    #print('Debug, play command is "%s"' % ('" "'.join(play_cmd_array), ))
 
     subprocess.call(play_cmd_array)
 
@@ -642,7 +642,7 @@ def play_channel(stream_url):
     play_cmd = GLOBALS[G_MY_SETTINGS].get(SETTINGS_SECTION, PLAYER_COMMAND)
     play_cmd_array = play_cmd.split()
     play_cmd_array.append(url)
-    print('Debug, play command is "%s"' % (' : '.join(play_cmd_array), ))
+    print('Debug, play command is "%s"' % ('" "'.join(play_cmd_array), ))
 
     player_proc = subprocess.Popen(play_cmd_array, shell=False)
     GLOBALS[G_PLAYER_PID] = player_proc.pid
