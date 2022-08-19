@@ -193,38 +193,38 @@ WEB_BODY = '''<body>
 </tr>
 %s
 <tr>
-    <td align="right"><a href='/u'><img src="/up.png" /></a></td>
+    <td align="right"><a href='/u'><img src="/images/up.png" /></a></td>
     <td>up a channel</td>
 </tr>
 
 <tr>
-    <td align="right"><a href='/d'><img src="/down.png" /></a></td>
+    <td align="right"><a href='/d'><img src="/images/down.png" /></a></td>
     <td>down a channel</td>
 </tr>
 
 <tr>
-    <td align="right"><a href='/p'><img src="/ball.red.png" /></a></td>
+    <td align="right"><a href='/p'><img src="/images/ball.red.png" /></a></td>
     <td>play/pause</td>
 </tr>
 
 <tr>
-    <td align="right"><a href='/f'><img src="/image1.png" /></a></td>
+    <td align="right"><a href='/f'><img src="/images/image1.png" /></a></td>
     <td>favourite toggle</td>
 </tr>
 <tr>
-    <td align="right"><a href='/m'><img src="/forward.png" /></a></td>
+    <td align="right"><a href='/m'><img src="/images/forward.png" /></a></td>
     <td>change mode</td>
 </tr>
 <tr>
-    <td align="right"><a href='/s'><img src="/sound1.png" /></a></td>
+    <td align="right"><a href='/s'><img src="/images/sound1.png" /></a></td>
     <td>speak the current channel name</td>
 </tr>
 <tr>
-    <td align="right"><a href='/S'><img src="/sound1.png" /></a></td>
+    <td align="right"><a href='/S'><img src="/images/sound1.png" /></a></td>
     <td>speak the future channel name</td>
 </tr>
 <tr>
-    <td align="right"><a href='/t'><img src="/world2.png" /></a></td>
+    <td align="right"><a href='/t'><img src="/images/world2.png" /></a></td>
     <td>time and date</td>
 </tr>
 </table>
