@@ -1004,7 +1004,7 @@ def radio_app():
                 else:
                     GLOBALS[G_RADIO_MODE] = RM_TVH
                     get_tvh_chan_urls()
-                print('Mode now %s' % (GLOBALS[G_RADIO_MODE], ))
+                print(f'Mode now { GLOBALS[G_RADIO_MODE] }')
 
             else:
                 print('Unknown key')
@@ -1016,8 +1016,8 @@ def radio_app():
         GLOBALS[G_CHAN_NUM_FUTURE] = chan_num
         GLOBALS[G_CHAN_NAME_FUTURE] = chan_names[chan_num]
         GLOBALS[G_EVENT].clear() # Resets the flag.
-        print('Current channel: %s' % (GLOBALS[G_CHAN_NAME_PLAYING], ))
-        print('Future channel: %s' % (GLOBALS[G_CHAN_NAME_FUTURE], ))
+        print(f'Current channel: { G_CHAN_NAME_PLAYING }')
+        print(f'Future channel: { GLOBALS[G_CHAN_NAME_FUTURE] }')
 
     if httpd:
         print('Waiting for web service to shut down')
@@ -1025,7 +1025,7 @@ def radio_app():
         time.sleep(1)
 
     for thread_name in threads:
-        print('Debug, joining thread %s to this' % (thread_name, ))
+        print(f'Debug, joining thread { thread_name } to this')
         threads[thread_name].join()
 
 
@@ -1049,15 +1049,15 @@ def main():
 
     if args.debug:
         GLOBALS[G_DBG_LEVEL] += 1
-        print('Debug, increased debug level to %d' % (GLOBALS[G_DBG_LEVEL], ))
+        print(f'Debug, increased debug level to { GLOBALS[G_DBG_LEVEL] }')
 
     if args.setup or config_bad < 0:
         if config_bad < -1:
             print('Error, severe problem with settings, please fix and restart program')
-            print('%s' % (error_text, ))
+            print(f'{ error_text}')
             sys.exit(1)
         if config_bad < 0:
-            print('%s' % (error_text, ))
+            print(f'{ error_text}')
         settings_editor(settings_file)
     else:
         radio_app()
