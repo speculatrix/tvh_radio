@@ -754,23 +754,22 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
             else:
                 extra_header = ''
 
-            favicon_url = '%s/favicon.ico' % (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL], )
+            favicon_url = f'{ GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_URL] }/favicon.ico'
             self.wfile.write(bytearray(WEB_HEAD % (favicon_url, extra_header, ), encoding='ascii'))
 
             if GLOBALS[G_PLAYER_PID] != 0:
                 if GLOBALS[G_STOP_PLAYBACK]:
-                    status_playing = '<tr><td align="right">playing</td>'   \
-                                     '<td>%s but stopping soon</td></tr>\n' \
-                                     % GLOBALS[G_CHAN_NAME_PLAYING]
+                    status_playing = '<tr><td align="right">playing</td>' \
+                                     f'<td>{ GLOBALS[G_CHAN_NAME_PLAYING] } but stopping soon</td></tr>\n'
                 else:
-                    status_playing = '<tr><td align="right">playing</td>'   \
-                                     '<td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_PLAYING]
+                    status_playing = '<tr><td align="right">playing</td>' \
+                                     f'<td>{ GLOBALS[G_CHAN_NAME_PLAYING] }</td></tr>\n'
             else:
                 status_playing = ''
 
             if GLOBALS[G_CHAN_NAME_FUTURE] != '':
                 channel_future = '<tr><td align="right">playing in future</td>' \
-                                 '<td>%s</td></tr>\n' % GLOBALS[G_CHAN_NAME_FUTURE]
+                                 f'<td>{ GLOBALS[G_CHAN_NAME_FUTURE] }</td></tr>\n'
             else:
                 channel_future = ''
 
