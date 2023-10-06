@@ -272,10 +272,7 @@ def api_test_func():
     ts_auth_type = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_AUTH_TYPE]
     ts_user = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_USER]
     ts_pass = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PASS]
-    ts_query = '%s/%s' % (
-        ts_url,
-        TS_URL_PEG,
-    )
+    ts_query = f'{ ts_url }/{ TS_URL_PEG }'
 
     if ts_auth_type == 'plain':
         ts_response = requests.get(ts_query, auth=(ts_user, ts_pass))
@@ -775,7 +772,7 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
 
             radio_mode = '<tr><td align="right">radio mode</td>'    \
                          f'<td>{ RM_TEXT[GLOBALS[G_RADIO_MODE]] }</td></tr>'
-            status_complete = '%s%s%s' % (radio_mode, status_playing, channel_future, )
+            status_complete = f'{ radio_mode }{ status_playing }{ channel_future }'
 
             self.wfile.write(bytearray(WEB_BODY % (status_complete, ), encoding='ascii'))
 
@@ -807,7 +804,7 @@ def radio_app():
     favourites_chan_map = read_list_file(os.path.join(os.environ['HOME'],
                                                       SETTINGS_DIR, FAVOURITES_LIST))
     if favourites_chan_map:
-        print('There are %d favourites' % (len(favourites_chan_map), ))
+        print(f'There are { len(favourites_chan_map) } favourites')
     else:
         GLOBALS[G_RADIO_MODE] = RM_TVH
 
