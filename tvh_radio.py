@@ -279,15 +279,14 @@ def api_test_func():
     else:
         ts_response = requests.get(ts_query, auth=HTTPDigestAuth(ts_user, ts_pass))
 
-    print('<!-- api_test_func URL %s -->' % (ts_query, ))
+    print(f'<!-- api_test_func URL { ts_query } -->')
     if ts_response.status_code != 200:
-        print('>Error code %d\n%s' % (ts_response.status_code, ts_response.content, ))
+        print(f'>Error code { ts_response.status_code }\n{ ts_response.content }')
         return
 
     ts_json = ts_response.json()
     #if GLOBALS[G_DBG_LEVEL] > 0:
-    print('%s' % json.dumps(ts_json, sort_keys=True, \
-                                indent=4, separators=(',', ': ')) )
+    print(json.dumps(ts_json, sort_keys=True, indent=4, separators=(',', ': ')))
 
 
 ##########################################################################################
@@ -332,7 +331,7 @@ def print_channel_list(prefix, chan_list):
     '''
 
     for (chan_name, chan_url) in chan_list.items():
-        print("%s%s : %s" % (prefix, chan_name, chan_url, ))
+        print(f'{ prefix }{ chan_name } : { chan_url }')
 
 
 ##########################################################################################
@@ -351,7 +350,7 @@ def write_list_file(text_header, file_name, list_data):
 
     fh_list = open(file_name, 'w')
     if not fh_list:
-        print('Error, streams listing file %s was unwritable' % (file_name, ))
+        print(f'Error, streams listing file { file_name } was unwritable')
         return False
 
     fh_list.write(text_header)
@@ -377,15 +376,15 @@ def read_list_file(file_name):
     '''
 
     if not os.path.isfile(file_name):
-        print('Warning, streams listing file %s nonexistent' % (file_name, ))
+        print(f'Warning, streams listing file { file_name } nonexistent')
         return {}
 
     list_data = {}
-    #print('Debug, attempting to open and read lines from %s' % (file_name, ))
+    #print(f'Debug, attempting to open and read lines from { file_name }')
 
     fh_list = open(file_name, 'r')
     if not fh_list:
-        print('Error, streams listing file %s was unreadable or missing' % (file_name, ))
+        print(f'Error, streams listing file { file_name } was unreadable or missing')
         return list_data
 
     # simple state machine based on the previous line read
@@ -405,7 +404,7 @@ def read_list_file(file_name):
             continue
 
         if prev_line != '' and next_line != '':
-            #print('Found %s  ==>> %s' % (prev_line, next_line, ))
+            #print(f'Found { prev_line } ==>> { next_line }')
             list_data[prev_line] = next_line
             next_line = '#'     # start searching again
 
@@ -418,7 +417,7 @@ def read_list_file(file_name):
 def text_to_speech_file(input_text, output_file):
     ''' uses Google to turn supplied text into speech in the file '''
 
-    goo_url = '%s%s' % (GOOGLE_TTS, urllib.parse.quote(input_text), )
+    goo_url = f'{ GOOGLE_TTS }{ urllib.parse.quote(input_text) }'
     opener = urllib.request.build_opener()
     opener.addheaders = [('User-agent', G_TTS_UA), ]
 
@@ -434,7 +433,7 @@ def chan_data_to_tts_file(chan_name):
 
     global GLOBALS
 
-    tts_file_name = '%s.mp3' % (os.path.join(os.environ['HOME'], SETTINGS_DIR, chan_name), )
+    tts_file_name = f"{ os.path.join(os.environ['HOME'], SETTINGS_DIR, chan_name)}.mp3"
 
     if not os.path.isfile(tts_file_name):
         text_to_speech_file(chan_name, tts_file_name)
@@ -454,26 +453,21 @@ def get_tvh_chan_urls():
     ts_auth_type = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_AUTH_TYPE]
     ts_user = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_USER]
     ts_pass = GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PASS]
-    ts_query = '%s/%s?limit=%s' % (
-        ts_url,
-        TS_URL_CHN,
-        GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_CHN_LIMIT],
-    )
+    ts_query = f'{ ts_url }/{ TS_URL_CHN }?limit={ GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_CHN_LIMIT] }'
 
     if ts_auth_type == 'plain':
         ts_response = requests.get(ts_query, auth=(ts_user, ts_pass))
     else:
         ts_response = requests.get(ts_query, auth=HTTPDigestAuth(ts_user, ts_pass))
 
-    print('<!-- get_tvh_chan_urls URL %s -->' % (ts_query, ))
+    print(f'<!-- get_tvh_chan_urls URL { ts_query } -->')
     if ts_response.status_code != 200:
         print('>Error code %d\n%s' % (ts_response.status_code, ts_response.content, ))
         return {}
 
     ts_json = ts_response.json()
     if GLOBALS[G_DBG_LEVEL] > 1:
-        print('%s' % json.dumps(ts_json, sort_keys=True, \
-                                indent=4, separators=(',', ': ')) )
+        print(json.dumps(ts_json, sort_keys=True, indent=4, separators=(',', ': ')) )
 
     if TS_PAUTH in GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION]:
         ts_pauth = '&AUTH=%s' % (GLOBALS[G_MY_SETTINGS][SETTINGS_SECTION][TS_PAUTH], )
@@ -506,8 +500,7 @@ def get_tvh_chan_urls():
                                    ts_pauth, )
 
     if GLOBALS[G_DBG_LEVEL] > 0:
-        print('%s' % json.dumps(chan_map, sort_keys=True, \
-                                indent=4, separators=(',', ': ')) )
+        print(json.dumps(chan_map, sort_keys=True, indent=4, separators=(',', ': ')) )
 
     return dict(sorted(chan_map.items()))
 
@@ -936,7 +929,7 @@ def radio_app():
                 else:
                     print('Error, mode change went wrong!')
 
-                print('Debug, mode is now { GLOBALS[G_RADIO_MODE] }')
+                print(f'Debug, mode is now { GLOBALS[G_RADIO_MODE] }')
                 chan_num = 0                        # start at first channel
                 chan_names = list(chan_map.keys())  # get an indexable array
                 max_chan = len(chan_map)            # max channel number
@@ -982,7 +975,7 @@ def radio_app():
                     print('Debug, not playing a channel so not speaking it\'s name')
 
             elif GLOBALS[G_KEY_STROKE] == 'S':
-                print('Debug, speaking future channel name %s' % (GLOBALS[G_CHAN_NAME_FUTURE], ))
+                print(f'Debug, speaking future channel name { GLOBALS[G_CHAN_NAME_FUTURE]}')
                 tts_file = chan_data_to_tts_file(GLOBALS[G_CHAN_NAME_FUTURE])
                 play_file(tts_file)
 
@@ -1007,7 +1000,7 @@ def radio_app():
 
             GLOBALS[G_KEY_STROKE] = ''
         else:
-            print('Error, unknown command key "%s"' % (GLOBALS[G_KEY_STROKE],))
+            print(f'Error, unknown command key "{ GLOBALS[G_KEY_STROKE] }"')
 
         GLOBALS[G_CHAN_NUM_FUTURE] = chan_num
         GLOBALS[G_CHAN_NAME_FUTURE] = chan_names[chan_num]
