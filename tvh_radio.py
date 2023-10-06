@@ -774,7 +774,7 @@ class MyHTTPRequestHandler(SimpleHTTPRequestHandler):
                 channel_future = ''
 
             radio_mode = '<tr><td align="right">radio mode</td>'    \
-                         '<td>%s</td></tr>' % (RM_TEXT[GLOBALS[G_RADIO_MODE]], )
+                         f'<td>{ RM_TEXT[GLOBALS[G_RADIO_MODE]] }</td></tr>'
             status_complete = '%s%s%s' % (radio_mode, status_playing, channel_future, )
 
             self.wfile.write(bytearray(WEB_BODY % (status_complete, ), encoding='ascii'))
@@ -800,7 +800,7 @@ def radio_app():
     streams_chan_map = read_list_file(os.path.join(os.environ['HOME'],
                                                    SETTINGS_DIR, STREAMS_LIST))
     if streams_chan_map:
-        print('There are %d streams' % (len(streams_chan_map), ))
+        print(f'There are { len(streams_chan_map) } streams')
 
     # get the favourites; if favourites are empty change the default
     # mode to TVH from favourites
@@ -897,7 +897,7 @@ def radio_app():
                     print('Removing channel %s to favourites' % (chan_names[chan_num], ))
                     del favourites_chan_map[chan_names[chan_num]]
                 else:
-                    print('Adding channel %s to favourites' % (chan_names[chan_num], ))
+                    print(f'Adding channel { chan_names[chan_num] } to favourites')
                     favourites_chan_map[chan_names[chan_num]] = chan_map[chan_names[chan_num]]
                     favourites_chan_map = dict(sorted(favourites_chan_map.items()))
                 # re-count the channels
@@ -939,7 +939,7 @@ def radio_app():
                 else:
                     print('Error, mode change went wrong!')
 
-                print('Debug, mode is now %s' % (GLOBALS[G_RADIO_MODE],))
+                print('Debug, mode is now { GLOBALS[G_RADIO_MODE] }')
                 chan_num = 0                        # start at first channel
                 chan_names = list(chan_map.keys())  # get an indexable array
                 max_chan = len(chan_map)            # max channel number
