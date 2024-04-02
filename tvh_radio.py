@@ -949,7 +949,7 @@ def radio_app():
                     del threads['PB']
                 else:
                     GLOBALS[G_CHAN_NAME_PLAYING] = chan_names[chan_num]
-                    print('attempting to play channel %d/%s' % (chan_num, chan_names[chan_num],))
+                    print(f'attempting to play channel { chan_num }/{ chan_names[chan_num]}')
                     stream_url = chan_map[chan_names[chan_num]]
                     threads['PB'] = Thread(target=play_channel, args=(stream_url, ))
                     threads['PB'].start()

@@ -85,16 +85,16 @@ Login to TVH as an administrator, and open the Configuration tab, choose
 Stream, then choose Stream Profiles. Add a stream, starting with the
 type Audio, set the name to audio-only, and click Apply.
  
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/create_audio_only_profile.png)
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/images/create_audio_only_profile.png)
 
 
 ### Create a user with persistent authentication token
 
 Create a user account with a password and persistent authentication like this:
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/tvh-user-entry.png)
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/images/tvh-user-entry.png)
 
 Then create an access entry for thet use allowing playing media etc like this:
-![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/tvh-access-entry.png)
+![Audio-Only Profile](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/images/tvh-access-entry.png)
 
 
 
@@ -133,7 +133,7 @@ on http://localhost otherwise you will need to enable the web interface
 to be public in the settings. Then you can access it as http://a.b.c.d/
 
 This is what you should see
-![screen-shot-of-web-interface](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/web_interface_screenshot.png)
+![screen-shot-of-web-interface](https://raw.githubusercontent.com/speculatrix/tvh_radio/master/images/web_interface_screenshot.png)
 
 
 # Road Map
